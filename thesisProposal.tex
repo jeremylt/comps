@@ -64,8 +64,13 @@ We discuss preconditioners that can be efficiently derived from matrix-free oper
 % ------------------------------------------------------------------------------
 \section{Introduction}
 
-High Performance Computing (HPC) hardware has seen improvements in Floating Point Operations per Second (FLOPs) that outstrip improvements in memory and network bandwidth, as highlighted in McCalpin's invited talk an Supercomputing 2016 \cite{mccalpin2016memory}.
-Under these hardware constraints, global sparse matrices are no longer good representation of a high-order finite element operators.
+High-order finite element methods offer advantages over low-order finite elements; $hp$ finite elements offer high arrucary and exponential convergence \cite{demkowicz1989toward}, \cite{oden1989toward}, \cite{rachowicz1989toward}.
+However, high-order finite elements are less common because the operator or its Jacobian rapidly loses sparsity as the order is increased.
+Matix-free implementation of high-order finite elements can provide the benefits of high-order methods without relying upon matrix sparsity for efficient implementation.
+
+High Performance Computing (HPC) hardware has seen improvements in Floating Point Operations per second (FLOPs) that outstrip improvements in memory and network bandwidth, as highlighted in McCalpin's invited talk an Supercomputing 2016 \cite{mccalpin2016memory}.
+These developments make memory and network bandwith a key limiting factor in the performance of HPC code.
+Under these hardware constraints, global sparse matrices are no longer a good representation of a high-order finite element operators.
 Matrix-free operators offer superior performance, both with respect to FLOPs needed for evaluation and the memory transfer needed for a matrix-vector product.
 However, matrix-free methods require iterative solvers, which are sensitive to the high condition numbers of high-order operator.
 
@@ -247,7 +252,7 @@ Thus, the performance benefits of high-order matrix-free finite elements can be 
 
 As discussed in Section 3, high-order matrix-free finite elements offer performance benefits in comparison to assembled sparse matrix representations.
 When using matrix-free formulations, iterative solvers are required to solve the Galerkin system of equations.
-We are primarily interested in Krylov subspace methods such as Conjugate Gradients, first developed by Hestens and Stiefel \cite{hestenes1952methods}, and related methods by Lanczos \cite{lanczos1950iteration} and \cite{lanczos1952solution}.
+We are primarily interested in Krylov subspace methods such as Conjugate Gradient, first developed by Hestens and Stiefel \cite{hestenes1952methods}, and related methods by Lanczos \cite{lanczos1950iteration} and \cite{lanczos1952solution}.
 Krylov subspace methods are a natural fit for matrix-free finite elements, as these methods only require matrix-vector products to populate the Krylov subspace
 \begin{equation}
 \mathcal{K} \left( r_0, A, k \right) = \lbrace r_0, A r_0, \dots, A^{k - 1} r_0 \rbrace
@@ -285,7 +290,7 @@ Jacobi iterations for an assembled linear operators produce a new approximate so
 x_i^k = \left( b_i - \sum_{j \neq i} a_{i j} x_j^{k - 1} \right) / a_{i i}
 \label{jacobi}
 \end{equation}
-For matrix-free implementations, these values are not directly avaliable, as computation of the full assembled linear operator for preconditioning defeats the benefits of matrix-free methods; however, the true operator diagonal can be efficiently computed.
+For matrix-free implementations, these values are not directly available, as computation of the full assembled linear operator for preconditioning defeats the benefits of matrix-free methods; however, the true operator diagonal can be efficiently computed.
 
 For Jacobi preconditioning based upon the true diagonal of the operator $A$, we have $M = \text{diag} \left( A \right)$ and
 \begin{equation}
@@ -314,6 +319,7 @@ Efficient Jacobi and Chebyshev implementations are important as smoothers for mu
 
 Multigrid methods are popular multi-level techniques that provide resolution independent convergence rates.
 $p$-type multigrid, developed by Ronquist and Patera \cite{ronquist1987spectral}, is a natural choice for high-order finite elements on an unstructured mesh and can be implemented with operators represented as in \ref{galerkin_form}.
+Ronquist and Patera declared $p$-type multigrid \textit{sensibly independent} of number of elements and polynomial degree of the element bases.
 Multigrid can be used as an independent solver, but we investigate the use of multigrid as a preconditioner for a Krylov method.
 
 There has been work by Heys, Manteuffel, McCormick, and Olson demonstrating the feasibility of algebraic multigrid for high-order finite elements \cite{heys2005algebraic}; however, algebraic multigrid requires assembly of the finite element operator, which defeats the benefits of matrix-free implementation.
@@ -358,6 +364,7 @@ Fisher, with others, has used overlapping Schwarz for high-order finite elements
 As with $h$-type multigrid, overlapping Schwarz techniques require additional information about the mesh in order to provide overlapping subdomains based upon element boundaries.
 
 Balancing Domain Decomposition by Constraints (BDDC), first developed by Dohrmann \cite{dohrmann2003preconditioner}, is technique for non-overlapping domain decomposition.
+In BDDC, the coarse problem is solved on a reduced set of shared DoFs between subdomains, using element corners and edges in 3D.
 BDDC is closely related to Finite Element Tearing and Interconnecting (FETI), developed by Farhat and Roux \cite{farhat1991method}, and subclasses of these two methods can be shown to be the same method \cite{fragakis2003mosaic}, \cite{klawonn2001feti}, and \cite{rixen1999theoretical}.
 
 For sufficiently high-order elements, we can treat each element as a subdomain.
@@ -412,7 +419,7 @@ For PDEs with arbitrarily deformed subdomains and non-linear pointwise functions
 % ------------------------------------------------------------------------------
 \subsection{Split Preconditioners}
 
-These preconditioners are appropriate for all PDEs.
+These preconditioners are not appropriate for all PDEs.
 In these cases, splitting these PDE by fields and applying different preconditioners to different fields can yield an effective preconditioner.
 In this way, the above preconditioners can be composed to handle a wider range of problems.
 We are collaborating in the development of solver for Neo-Hookean hyperelasticity at finite strain in the incompressible regime.
@@ -431,7 +438,12 @@ While Jacobi, block Jacobi, and Chebyshev semi-iterative preconditioning is not 
 $p$-type multigrid with matrix-free prolongation and restriction operators is a natural fit for high-order matrix-free finite elements and has proven effective in solid mechanics problems.
 BDDC is another attractive technique that can be implemented in a matrix-free fashion, and FDM based matrix-free separable approximate inverses may provide suitable subdomain solvers for BDDC and other domain decomposition techniques with non-linear and non-separable problems.
 
-%\section*{Acknowledgments}
+% ------------------------------------------------------------------------------
+% Acknowledgements
+% ------------------------------------------------------------------------------
+\section*{Acknowledgments}
+
+This work is supported by the Exascale Computing Project (17-SC-20-SC), a collaborative effort of two U.S. Department of Energy organizations (Office of Science and the National Nuclear Security Administration) responsible for the planning and preparation of a capable exascale ecosystem, including software, applications, hardware, advanced system engineering and early testbed platforms, in support of the nation’s exascale computing imperative.
 
 \bibliographystyle{siamplain}
 \bibliography{references/references}
