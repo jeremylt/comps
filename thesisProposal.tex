@@ -111,6 +111,8 @@ High-order finite elements implemented in a matrix-free fashion are one way to a
 In this section we develop notation to describe high-order finite elements on unstructured meshes implemented in a matrix-free fashion.
 Furthermore, we compare the performance of matrix-free implementations and assembled matrices.
 
+
+% -- Notation ------------------------------------------------------------------
 \subsection{Notation}
 
 The development of this notation will largely follow \cite{brown2010efficient}.
@@ -169,6 +171,7 @@ Neumann or Robin boundary conditions are represented by adding boundary integral
 Boundary integrals internal to the domain $\Omega$, such as face integrals in Discontinuous Galerkin methods, can also be represented using additional terms with appropriate bases and element restrictions.
 
 
+% -- Linearization -------------------------------------------------------------
 \subsection{Linearization}
 
 When the PDE \ref{weak_form} is linear, the pointwise functions $f_0 \left( \right)$ and $f_1 \left( \right)$ are also linear and Krylov subspace methods can be used to solve the Galerkin system of equations \ref{galerkin_form}.
@@ -191,6 +194,7 @@ With these pointwise functions, Jacobian-free Newton-Krylov methods can be used 
 Jacobian-free Newton-Krylov methods were summarzied, with preconditioning strategies, by Knoll and Keyes in \cite{knoll2004jacobian}.
 
 
+% -- Performance ---------------------------------------------------------------
 \subsection{Performance}
 
 To demonstrate the performance benefits of high-order finite elements implemented in a matrix free format, we explore the specific case of the Helmholz equations.
@@ -282,6 +286,7 @@ via a Krylov method instead.
 
 We will investigate left preconditioning, where $M_R = I$ and $M_L^{-1} \approx A^{-1}$.
 Therefore, we will adopt the notation $M_L = M$.
+
 
 % Jacobi and Chebyshev
 % ------------------------------------------------------------------------------
