@@ -86,6 +86,7 @@ In Section 4, we discuss preconditioning techniques for high-order finite elemen
 Two key performance metrics for HPC hardware are FLOPs and memory and network bandwidth.
 FLOPs is the more widely popularized of these two metrics; the Top 500 \cite{meuertop500} list tracks the 500 supercomputers with the highest peak  FLOPs, as measured by High-Performance Linpack (HPL) \cite{petitethpl}.
 HPL measures the performance when solving random dense linear systems in double precision via LU factorization.
+% I don't quite understand why HPL does so well. Is it just that HPL measures FLOPs whereas HPGMG and HPCG are measuring "useful" FLOPs towards a more realistic objective?
 
 Other benchmarks, such as High-Performance Geometric Multigrid (HPGMG) \cite{adams2014hpgmg} and High-Performance Conjugate Gradient (HPCG) \cite{dongarra2016high}, measure performance based upon solving a more complex benchmark problem.
 The disparity between the FLOPs achieved in benchmarks such as HPGMG and HPCG and the peak FLOPs measured by HPL is partially explained by the growing gap between FLOPs and memory and network bandwidth.
@@ -98,6 +99,7 @@ As discussed in McCalpin's Supercomputing 2016 invited talk \cite{mccalpin2016me
 \caption{30 year system balance history}
 \label{fig:mccalpinsc16}
 \end{figure}
+% I think this plot could be cleaned up for use in a paper. I'm not sure how 'Kosher' it is to recreate someone else's plot to make it match the style of plots in your paper. Is there a stadard practice here?
 
 As seen in Figure \ref{fig:mccalpinsc16}, from 2013 to 2016, FLOPs have improved twice as much as memory and network bandwidth.
 This problem is exacerbated by network latency, which is decreasing at a rate of approximately 20\% per year, and memory latency, which is \textit{increasing} at a rate of approximately 20\%per year.
@@ -237,6 +239,7 @@ If the PDE has multiple fields with the same basis, then $B$ and $D$ only need t
 \caption{Performance per DoF}
 \label{fig:assembledvsmatrixfree}
 \end{figure}
+% I think perhaps an additional plot next to this one showing the balance of FLOPs to entries would show why this is beneficial. Also, is entries the word I want? It feels awkward but I don't have a better word.
 
 As shown in \ref{fig:assembledvsmatrixfree}, the number of values required per node to represent the Galerkin system of equations \ref{helmholz_galerkin} in a matrix-free fashion is constant with respect to polynomial order, while the number of values required for the assembled matrix representing the operator grows exponentially.
 The number of operations required to compute the matrix-vector product in a matrix-free fashion per node grows only linearly while the number of operations grows cubically for the assembled matrix.
@@ -306,12 +309,14 @@ In the Chebyshev method, we generate iterates of the form
 y^k = \omega_k \left( y^{k - 1} - y^{k - 2} + \gamma r^{k - 1} \right) + y^{k - 2}
 \label{chebyshev}
 \end{equation}
+% I haven't quite figured out the best way to write an iterative technique like this as a preconditioner M. I get that we are effectively using A^{-1} \approx M^{-1} here, but it seems difficult to write M = .... in this case.
 where $\omega_k = 2 \frac{2 - \beta - \alpha}{\beta - \alpha} \frac{c_{k - 1} \left( \mu \right)}{c_k \left( \mu \right)}$, $\gamma = 2 \ \left( 2 - \alpha - \beta \right)$, $\hat{M} r^{k - 1} = b - A y^{k - 1}$, and $c_i$ are the Chekyshev polynomials with $\mu = 1 + \frac{1 - \beta}{\beta - \alpha}$.
 The eigenvalues of $A$ are in the range $\left[ \alpha, \beta \right]$.
 $\hat{M}$, $y^0 = x^0$ and $y^1 = x^1$ come from another iterative preconditioning technique such as Jacobi.
 
 While Jacobi and Chebyshev techniques are well established, there is some work to be done in providing efficient operator diagonal or block diagonal assembly, especially in the context of matrix-free Jacobians derived numerically or algorithmically.
 Efficient Jacobi and Chebyshev implementations are important as smoothers for multigrid preconditioners.
+% Should I try to mention why? I only have 5-10 pages to work with (technically), but I feel like this Section 4 is providing really brief overviews of the preconditioners I'm interested in implementing well in libCEED.
 
 % P-Multigrid
 % ------------------------------------------------------------------------------
@@ -354,6 +359,7 @@ With even modest order finite elements, such as degree $4$, $p$-type multigrid c
 While the theoretical foundation for $p$-type multigrid implemented in a matrix-free fashion on unstructured meshes has existed for quite some time, there do not appear to be many examples of these techniques being combined for practical problems.
 We are collaborating on a paper implementing these techniques in the context of Neo-Hookean hyperelasticity at finite strain.
 This is a new contribution to the solid mechanics community, which typically uses low order finite elements and assembled sparse matrices.
+% I feel like this is my best case to the committee that I have been doing valuable mathematical work and will be able to continue to do so for my thesis. But I'm pretty surprised that I didn't see any p-multigrid papers for solid mechanics, especially on unstructured meshes and especially with AMG as a coarse solve. I suppose I don't have a good senes of how novel this combination is?
 
 % Domain Decomposition
 % ------------------------------------------------------------------------------
@@ -381,6 +387,7 @@ where $\mathcal{H}$ is the direct sum of local operators $\mathcal{H}^{\left( i 
 \end{equation}
 with $\delta_i \left( x \right) = 1 / \lvert \mathcal{N}_x \rvert$ and $\mathcal{N}_x$ is the set of indices of subdomains that have $x$ on their boundary.
 The function $\delta_i \left( x \right)$ is used to create the scaled injection operator $R_1$ such that interior values have $1$ and interface values have $\lvert \mathcal{N}_x \rvert$ entries each set to $\delta_i \left( x \right)$.
+% I will be the first to admit that my understanding of BDDC needs some refinement.
 
 The operator $\widetilde{A}^{-1}$ represents a subdomain solver.
 This subdomain solver can be a direct method, or an inexact solver as discussed by Li and Widlun in \cite{li2007use}.
@@ -414,6 +421,7 @@ Notice that if we treat $\boldsymbol{\mathcal{X}}$ as a basis operation, these i
 With non-separable operators $A$, a suitable choice of $\left( \sum_{i = 0}^{d - 1} \mathbf{L}_i - k^2 I_3 \right)$ can produce suitable approximate subdomain solvers.
 Fisher, Miller, and Tufo demonstrated in \cite{fischer2000overlapping} that while FDM cannot be used for arbitrarily deformed subdomains, defining the diagonalization over a parallelepiped with average dimensions in each coordinate direction is adequate for preconditioning.
 For PDEs with arbitrarily deformed subdomains and non-linear pointwise functions $f_0$ and $f_1$, early experiments indicate that a suitable approximate inverse might be constructed by correctly selecting pseudoeigenvalues to use with pseudoeigenvectors from the mass and stiffness matrices given above in \ref{helmholz_stiffness}.
+% I feel like this will be my biggest mathematical piece of my thesis. Is it worth mentioning that I'm focused on BDDC but this effort to develop separable approximate inverses can be used for a wider range of domain decomposition problems? It seems like overlapping techniques would require a lot of recomputation for the large overlapping elements that would make computation of the pseudoeigenvalues possibly overly expensive in that case (q^3 vs (q+4)^3).
 
 % Split Preconditioners
 % ------------------------------------------------------------------------------
@@ -424,6 +432,7 @@ In these cases, splitting these PDE by fields and applying different preconditio
 In this way, the above preconditioners can be composed to handle a wider range of problems.
 We are collaborating in the development of solver for Neo-Hookean hyperelasticity at finite strain in the incompressible regime.
 This solver will split the displacement and discontinuous pressure fields, applying $p$-type multigrid as a preconditioner to the displacement fields and block Jacobi as a preconditioner to the discontinuous pressure field.
+% I don't know if this section adds a lot. Field splitting seems to make the work above much more useful, but I would imagine its well known. (Really, I've been in this high-order matrix-free corner for a while now, so I am starting to realize that I don't have the best sense of perspective on what is and is not well known or common.)
 
 % ------------------------------------------------------------------------------
 % Conclusion
