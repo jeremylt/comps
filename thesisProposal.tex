@@ -57,7 +57,7 @@ Matrix-free operators offer superior performance, both with respect to FLOPs nee
 However, matrix-free methods require iterative solvers, which are sensitive to the condition number of the operator.
 Matrix-free operators with tensor product bases have the best efficiency at high-order, but the ill-conditioning slows iterative solver convergence.
 Preconditioners can accelerate convergence of these solvers with high-order operators.
-We discuss preconditioners that can be efficiently derived from matrix-free operators or formulated as matrix-free operators themselves, to include diagonal or block diagonal based techniques such as Jacobi and Chebyshev, multi-level techniques such a p-multigrid, and domain decomposition techniques such as Additive Schwartz and BDDC.
+We discuss preconditioners that can be efficiently derived from matrix-free operators or formulated as matrix-free operators themselves, to include diagonal or block diagonal based techniques such as Jacobi and Chebyshev, multi-level techniques such a $p$-multigrid, and domain decomposition techniques such as Additive Schwartz and BDDC.
 \end{abstract}
 
 % ------------------------------------------------------------------------------
@@ -333,13 +333,13 @@ Efficient Jacobi and Chebyshev implementations are important as smoothers for mu
 
 Multigrid methods are popular multi-level techniques that provide resolution independent convergence rates.
 $p$-type multigrid, developed by Ronquist and Patera \cite{ronquist1987spectral}, is a natural choice for high-order finite elements on an unstructured mesh and can be implemented with operators represented as in \ref{galerkin_form}.
-Ronquist and Patera declared $p$-type multigrid \textit{sensibly independent} of number of elements and polynomial degree of the element bases.
+Ronquist and Patera declared $p$-multigrid \textit{sensibly independent} of number of elements and polynomial degree of the element bases.
 Multigrid can be used as an independent solver, but we investigate the use of multigrid as a preconditioner for a Krylov method.
 
 There has been work by Heys, Manteuffel, McCormick, and Olson demonstrating the feasibility of algebraic multigrid for high-order finite elements \cite{heys2005algebraic}; however, algebraic multigrid requires assembly of the finite element operator, which defeats the benefits of matrix-free implementation.
 There are examples of using $h$-multigrid, such as \cite{davydov2019matrix}; however $p$-multigrid offers more flexibility with respect to meshes in comparison to $h$-multigrid as it does not require aggregation of multiple elements into larger elements.
 
-For $p$-type multigrid with nodal bases, the prolongation operator interpolates to a higher order basis nodes and is defined by
+For $p$-multigrid with nodal bases, the prolongation operator interpolates to a higher order basis nodes and is defined by
 \begin{equation}
 P_{p - 1}^p = m_p^{-1} \sum_e \mathcal{E}_p^T \mathbf{B}_{p - 1}^p \mathcal{E}_{p - 1}
 \label{mg_prolong}
@@ -348,10 +348,10 @@ where $\mathbf{B}_{p - 1}^p$ interpolates from a basis of degree $p - 1$ to degr
 The restriction operator is defined as the transpose of the prolongation operator, $R_{p - 1}^p = \left( P_{p - 1}^p \right)^T$.
 These operators can be implemented matrix-free, in the same fashion as \ref{galerkin_form}.
 
-With these components we can implement $p$-type multigrid, using the algorithm described by May, Sanan, Rupp, Knepley, and Smith in \cite{may2016extreme}
+With these components we can implement $p$-multigrid, using the algorithm described by May, Sanan, Rupp, Knepley, and Smith in \cite{may2016extreme}
 
 \begin{algorithm}
-\caption{$p$-type multigrid}
+\caption{Multigrid Algorithm}
 \label{multigrid}
 \begin{algorithmic}[1]
 \State Compute $x^k$
@@ -363,12 +363,12 @@ With these components we can implement $p$-type multigrid, using the algorithm d
 \end{algorithmic}
 \end{algorithm}
 
-With even modest order finite elements, such as degree $4$, $p$-type multigrid can substantially reduce the size of the global solution vector by a factor of $P^3 / 8$, which makes assembly of the finite element operator on the coarse grid tractable so that direct solvers such as Algebraic Multigrid can be used to solve the coarse problem.
+With even modest order finite elements, such as degree $4$, $p$-multigrid can substantially reduce the size of the global solution vector by a factor of $P^3 / 8$, which makes assembly of the finite element operator on the coarse grid tractable so that direct solvers such as Algebraic Multigrid can be used to solve the coarse problem.
 
-While the theoretical foundation for $p$-type multigrid implemented in a matrix-free fashion on unstructured meshes has existed for quite some time, there do not appear to be many examples of these techniques being combined for practical problems.
+While the theoretical foundation for $p$-multigrid implemented in a matrix-free fashion on unstructured meshes has existed for quite some time, there do not appear to be many examples of these techniques being combined for practical problems.
 We are collaborating on a paper implementing these techniques in the context of Neo-Hookean hyperelasticity at finite strain.
 This is a new contribution to the solid mechanics community, which typically uses low order finite elements and assembled sparse matrices.
-Overall, the use of high-order finite elements with $p$-type multigrid is under-explored for solid mechanics problems, especially with high-contrast or nearly incompressible materials.
+Overall, the use of high-order finite elements with $p$-multigrid is under-explored for solid mechanics problems, especially with high-contrast or nearly incompressible materials.
 
 % Domain Decomposition
 % ------------------------------------------------------------------------------
@@ -442,7 +442,7 @@ These preconditioners are not appropriate for all PDEs.
 In these cases, splitting these PDE by fields and applying different preconditioners to different fields can yield an effective preconditioner.
 In this way, the above preconditioners can be composed to handle a wider range of problems.
 We are collaborating in the development of solver for Neo-Hookean hyperelasticity at finite strain in the incompressible regime.
-This solver will split the displacement and discontinuous pressure fields, applying $p$-type multigrid as a preconditioner to the displacement fields and block Jacobi as a preconditioner to the discontinuous pressure field.
+This solver will split the displacement and discontinuous pressure fields, applying $p$-multigrid as a preconditioner to the displacement fields and block Jacobi as a preconditioner to the discontinuous pressure field.
 % I don't know if this section adds a lot. Field splitting seems to make the work above much more useful, but I would imagine its well known. (Really, I've been in this high-order matrix-free corner for a while now, so I am starting to realize that I don't have the best sense of perspective on what is and is not well known or common.)
 
 % ------------------------------------------------------------------------------
@@ -455,7 +455,7 @@ High-order finite element operators solved with Krylov subspace methods require 
 
 We highlighted several areas for future improvement in preconditioning for high-order finite element operators implemented in a matrix-free fashion.
 While Jacobi, block Jacobi, and Chebyshev semi-iterative preconditioning is not new, these techniques are important, on their own or as smoothers for other techniques, and there is work to be done on providing efficient operator diagonal or point block diagonal assembly.
-$p$-type multigrid with matrix-free prolongation and restriction operators is a natural fit for high-order matrix-free finite elements and has proven effective in solid mechanics problems.
+$p$-multigrid with matrix-free prolongation and restriction operators is a natural fit for high-order matrix-free finite elements and has proven effective in solid mechanics problems.
 BDDC is another attractive technique that can be implemented in a matrix-free fashion, and FDM based matrix-free separable approximate inverses may provide suitable subdomain solvers for BDDC and other domain decomposition techniques with non-linear and non-separable problems.
 
 % ------------------------------------------------------------------------------
