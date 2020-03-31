@@ -14,7 +14,8 @@
 \usepackage{amsfonts}
 \usepackage{graphicx}
 \usepackage{epstopdf}
-\usepackage{algpseudocode}
+\usepackage{algpseudocode} % Pseudo code and algorithms
+\usepackage{subcaption}    % Subfigures
 \ifpdf
   \DeclareGraphicsExtensions{.eps,.pdf,.png,.jpg}
 \else
@@ -85,8 +86,7 @@ In Section 4, we discuss preconditioning techniques for high-order finite elemen
 
 Two key performance metrics for HPC hardware are FLOPs and memory and network bandwidth.
 FLOPs is the more widely popularized of these two metrics; the Top 500 \cite{meuertop500} list tracks the 500 supercomputers with the highest peak  FLOPs, as measured by High-Performance Linpack (HPL) \cite{petitethpl}.
-HPL measures the performance when solving random dense linear systems in double precision via LU factorization.
-% I don't quite understand why HPL does so well. Is it just that HPL measures FLOPs whereas HPGMG and HPCG are measuring "useful" FLOPs towards a more realistic objective?
+HPL measures the performance when solving random dense linear systems in double precision via LU factorization and measures maximum achievable FLOPs.
 
 Other benchmarks, such as High-Performance Geometric Multigrid (HPGMG) \cite{adams2014hpgmg} and High-Performance Conjugate Gradient (HPCG) \cite{dongarra2016high}, measure performance based upon solving a more complex benchmark problem.
 The disparity between the FLOPs achieved in benchmarks such as HPGMG and HPCG and the peak FLOPs measured by HPL is partially explained by the growing gap between FLOPs and memory and network bandwidth.
@@ -219,12 +219,12 @@ For simplicity, we compare the total floating point operations and matrix entrie
 While fewer operations and matrix entries will be required on a domain decomposed into multiple elements due to the shared nodes on element boundaries, this comparison will adequately illustrate the relative merits of matrix-free implementations for high-order operators.
 
 With a polynomial basis of degree $P - 1$, a 3D hexahedral element has $P^3$ nodes.
-Therefore, the assembled matrix representing the Galerkin system of equations \ref{helmholz_galerkin} has $P^6$ entries.
+Therefore, the assembled matrix representing the Galerkin system of equations \ref{helmholz_galerkin} has $P^6$ floating point values.
 Additionally, applying a matrix-vector product requires $\mathcal{O} \left( 2 P^6 - P^3 \right)$ floating point operations.
 
 On the other hand, a matrix-free representation of the Galerkin system of equations \ref{helmholz_galerkin} can exploit tensor contractions to reduce total required operator entries and floating point operations.
 With a $P$ point quadrature rule, the 1D basis operators, $B$ and $D$, have $2 P^2$ entries, the inverses of the Jacobians of the coordinate mappings requires $d^2 P^3$ entries, and the element quadrature weights require $P^3$ entries.
-Including the spatial frequency, $\left( d^2 + 1 \right) P^3 + 2 P^2 + 1$ entries are required.
+Including the spatial frequency, $\left( d^2 + 1 \right) P^3 + 2 P^2 + 1$ floating point values are required.
 Using tensor contractions to interpolate the nodal values to the quadrature space requires $\mathcal{O} \left( P^{d + 1} \right)$ operations, and computing derivatives at the quadrature points requires an additional $\mathcal{O} \left( P^{d + 1} + \left( 2 d^2 - 1 \right) P^3 \right)$ operations.
 With appropriate precomputation of the geometric factors from the coordinate mapping, the pointwise application of the weak form and transpose basis operators can be applied in an additional $\mathcal{O} \left( 2 P^{d + 1} + \left( d + 1 \right) P^3 \right)$ operations.
 In total, the matrix-vector requires $\mathcal{O} \left( 4 P^{d + 1} + \left( 2 d^2 + d + 1 \right) P^3 \right)$ floating point operations.
@@ -235,15 +235,23 @@ If the $P$ LGL points are also used for the quadrature rule, then $2 P^3$ floati
 If the PDE has multiple fields with the same basis, then $B$ and $D$ only need to be stored once for each field that shares this basis.
 
 \begin{figure}
-\includegraphics[width=\linewidth]{img/assembledVsMatrixFree}
+\begin{subfigure}{.495\textwidth}
+\includegraphics[width=.99\linewidth]{img/assembledVsMatrixFree}
+\caption{FLOPs and Bytes per DoF}
+\end{subfigure}
+\begin{subfigure}{.495\textwidth}
+\includegraphics[width=.99\linewidth]{img/assembledVsMatrixFreeBalance}
+\caption{Ratio of Bytes to FLOPs}
+\end{subfigure}
 \caption{Performance per DoF}
 \label{fig:assembledvsmatrixfree}
 \end{figure}
-% I think perhaps an additional plot next to this one showing the balance of FLOPs to entries would show why this is beneficial. Also, is entries the word I want? It feels awkward but I don't have a better word.
 
-As shown in \ref{fig:assembledvsmatrixfree}, the number of values required per node to represent the Galerkin system of equations \ref{helmholz_galerkin} in a matrix-free fashion is constant with respect to polynomial order, while the number of values required for the assembled matrix representing the operator grows exponentially.
+As shown in Figure \ref{fig:assembledvsmatrixfree}, the number of values required per node to represent the Galerkin system of equations \ref{helmholz_galerkin} in a matrix-free fashion is constant with respect to polynomial order, while the number of values required for the assembled matrix representing the operator grows exponentially.
 The number of operations required to compute the matrix-vector product in a matrix-free fashion per node grows only linearly while the number of operations grows cubically for the assembled matrix.
+This means that the amount of data movement required per DoF decreases for matrix-free implementations while it remains relatively constant for assembled matrices.
 
+We assumed a mesh with hexahedral elements for this analysis.
 In comparison to generation of simplex meshes, generation of high quality hexahedral meshes is a time intensive process.
 However, as the formulation \ref{galerkin_form} can handle meshes comprised of different finite element geometries, it is possible to generate meshes comprised predominately of high quality hexahedral elements with initial refinement of a simplex mesh without the costly process of fully converting a simplex mesh into hexahedral elements.
 Thus, the performance benefits of high-order matrix-free finite elements can be realized without substantial additional effort in generating a mesh exclusively composed of high quality hexahedral elements.
@@ -283,6 +291,8 @@ via our Krylov method instead.
 
 We will investigate left preconditioning, where $M_R = I$ and $M_L^{-1} \approx A^{-1}$.
 Therefore, we will adopt the notation $M_L = M$.
+Many of the preconditioning methods we discuss can be used as iterative solvers.
+In these cases, a small number of iterations of the preconditioner $M$ are used to improve the Conjugate Gradient iterate $x^k$.
 
 % Jacobi and Chebyshev
 % ------------------------------------------------------------------------------
@@ -309,7 +319,6 @@ In the Chebyshev method, we generate iterates of the form
 y^k = \omega_k \left( y^{k - 1} - y^{k - 2} + \gamma r^{k - 1} \right) + y^{k - 2}
 \label{chebyshev}
 \end{equation}
-% I haven't quite figured out the best way to write an iterative technique like this as a preconditioner M. I get that we are effectively using A^{-1} \approx M^{-1} here, but it seems difficult to write M = .... in this case.
 where $\omega_k = 2 \frac{2 - \beta - \alpha}{\beta - \alpha} \frac{c_{k - 1} \left( \mu \right)}{c_k \left( \mu \right)}$, $\gamma = 2 \ \left( 2 - \alpha - \beta \right)$, $\hat{M} r^{k - 1} = b - A y^{k - 1}$, and $c_i$ are the Chebyshev polynomials with $\mu = 1 + \frac{1 - \beta}{\beta - \alpha}$.
 The eigenvalues of $A$ are in the range $\left[ \alpha, \beta \right]$.
 $\hat{M}$, $y^0 = x^0$ and $y^1 = x^1$ come from another iterative preconditioning technique such as Jacobi.
@@ -368,6 +377,8 @@ This is a new contribution to the solid mechanics community, which typically use
 Domain decomposition methods are another popular class of preconditioners for high-order finite elements.
 Fisher, with others, has used overlapping Schwarz for high-order finite elements or spectral elements with fluid dynamics problems, such as in \cite{fischer1997overlapping} and \cite{fischer2005hybrid}.
 As with $h$-type multigrid, overlapping Schwarz techniques require additional information about the mesh in order to provide overlapping subdomains based upon element boundaries.
+Also, the number of nodes required for overlapping is significant at high-order.
+With a modest $2$ node overlap, approximately $\left( P + 4 \right)^3$ nodes are required in a subdomain compared to $P^3$ in an element.
 
 Balancing Domain Decomposition by Constraints (BDDC), first developed by Dohrmann \cite{dohrmann2003preconditioner}, is technique for non-overlapping domain decomposition.
 In BDDC, the coarse problem is solved on a reduced set of shared DoFs between subdomains, using element corners and edges in 3D.
@@ -421,7 +432,7 @@ Notice that if we treat $\boldsymbol{\mathcal{X}}$ as a basis operation, these i
 With non-separable operators $A$, a suitable choice of $\left( \sum_{i = 0}^{d - 1} \mathbf{L}_i - k^2 I_3 \right)$ can produce suitable approximate subdomain solvers.
 Fisher, Miller, and Tufo demonstrated in \cite{fischer2000overlapping} that while FDM cannot be used for arbitrarily deformed subdomains, defining the diagonalization over a parallelepiped with average dimensions in each coordinate direction is adequate for preconditioning.
 For PDEs with arbitrarily deformed subdomains and non-linear pointwise functions $f_0$ and $f_1$, early experiments indicate that a suitable approximate inverse might be constructed by correctly selecting pseudoeigenvalues to use with pseudoeigenvectors from the mass and stiffness matrices given above in \ref{helmholz_stiffness}.
-% I feel like this will be my biggest mathematical piece of my thesis. Is it worth mentioning that I'm focused on BDDC but this effort to develop separable approximate inverses can be used for a wider range of domain decomposition problems? It seems like overlapping techniques would require a lot of recomputation for the large overlapping elements that would make computation of the pseudoeigenvalues possibly overly expensive in that case (q^3 vs (q+4)^3).
+These approximate inverse techniques may be used with other domain decomposition techniques; however, overlapping techniques may require significant additional computation due to the additional nodes in each subdomain.
 
 % Split Preconditioners
 % ------------------------------------------------------------------------------
