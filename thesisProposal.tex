@@ -93,17 +93,27 @@ The disparity between the FLOPs achieved in benchmarks such as HPGMG and HPCG an
 
 Over the last thirty years, the peak FLOPs for new HPC hardware has been increasing more rapidly than memory bandwidth and network bandwidth, for both CPUs and GPUs.
 As discussed in McCalpin's Supercomputing 2016 invited talk \cite{mccalpin2016memory}, peak FLOPs per socket have been increasing at a rate of 50-60\% per year while memory bandwidth has only been increasing at a rate of approximately 23\% per year and network bandwidth has only been increasing at a rate of approximately 20\% per year.
-
-\begin{figure}
-\includegraphics[width=\linewidth]{img/mcclapinsc16plot}
-\caption{30 year system balance history}
-\label{fig:mccalpinsc16}
-\end{figure}
-% I think this plot could be cleaned up for use in a paper. I'm not sure how 'Kosher' it is to recreate someone else's plot to make it match the style of plots in your paper. Is there a standard practice here?
-
-As seen in Figure \ref{fig:mccalpinsc16}, from 2013 to 2016, FLOPs have improved twice as much as memory and network bandwidth.
+FLOPs have improved twice as much as memory and network bandwidth.
 This problem is exacerbated by network latency, which is decreasing at a rate of approximately 20\% per year, and memory latency, which is \textit{increasing} at a rate of approximately 20\%per year.
 
+\begin{figure}
+\begin{subfigure}{.32\textwidth}
+\includegraphics[width=.99\linewidth]{img/peakFlops}
+\caption{Maximum FLOPs}
+\end{subfigure}
+\begin{subfigure}{.32\textwidth}
+\includegraphics[width=.99\linewidth]{img/peakBandwidth}
+\caption{Maximum Bandwidth}
+\end{subfigure}
+\begin{subfigure}{.32\textwidth}
+\includegraphics[width=.99\linewidth]{img/peakRatio}
+\caption{Ratio}
+\end{subfigure}
+\caption{System Balance}
+\label{fig:peakratio}
+\end{figure}
+
+Using data from \cite{kruppcomparison}, we can see in Figure \ref{fig:peakratio} that AMD, NVIDIA, and Intel top of the line hardware has a steady decrease in the maximum memory bandwidth compared to FLOPs over the last 13 years.
 HPC applications need to be careful to control the memory bandwidth required for their codes to better realize the FLOPs capabilities of HPC hardware.
 
 % ------------------------------------------------------------------------------
