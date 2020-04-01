@@ -424,7 +424,7 @@ A = \sum_{i = 0}^{d - 1} \mathbf{K}_i - k^2 \mathbf{M}
 where $\mathbf{M} = \mathbf{B}^T \mathbf{W} \mathbf{B}$, $\mathbf{K}_i = \mathbf{D}_i^T \mathbf{W} \mathbf{D}_i$, and so on.
 In this example, we neglect the terms arising from the coordinate mapping as they can result in a non-separable operator.
 
-These operators $\mathbf{M}$ and $\mathbf{K}$ can be written in terms of the 1D operators, $M = B^T W B$ and $K = D^T W D$, as $\mathbf{M} = M \otimes M \otimes M$ and $\mathbf{D}_0 = D \otimes M \otimes M$.
+These operators $\mathbf{M}$ and $\mathbf{K}$ can be written in terms of the 1D operators, $M = B^T W B$ and $K = D^T W D$, as $\mathbf{M} = M \otimes M \otimes M$, $\mathbf{D}_0 = D \otimes M \otimes M$, and so on.
 Provided that $K$ is symmetric and $M$ is symmetric and positive definite, we can simultaneously diagonalize $K$ and $M$, yielding $\mathcal{X}^T M \mathcal{X} = I$ and $\mathcal{X}^T K \mathcal{X} = L$.
 With these pseudoeigenvalues and pseudoeigenvectors, we can rewrite $A$ as
 \begin{equation}
@@ -436,7 +436,7 @@ with inverse
 A^{-1} = \boldsymbol{\mathcal{X}}^T \left( \sum_{i = 0}^{d - 1} \mathbf{L}_i - k^2 \mathbf{I} \right)^{-1} \boldsymbol{\mathcal{X}}
 \label{helmholz_inv}
 \end{equation}
-where $\boldsymbol{\mathcal{X}} = \mathcal{X} \otimes \mathcal{X} \otimes \mathcal{X}$, $\mathbf{L}_0 = L \otimes I \otimes I$.
+where $\boldsymbol{\mathcal{X}} = \mathcal{X} \otimes \mathcal{X} \otimes \mathcal{X}$, $\mathbf{L}_0 = L \otimes I \otimes I$, and so on.
 Notice that if we treat $\boldsymbol{\mathcal{X}}$ as a basis operation, these inverses can be described and implemented matrix-free, as in \ref{galerkin_form}.
 
 With non-separable operators $A$, a suitable choice of $\left( \sum_{i = 0}^{d - 1} \mathbf{L}_i - k^2 I_3 \right)$ can produce suitable approximate subdomain solvers.
