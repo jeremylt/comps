@@ -333,9 +333,12 @@ where $\omega_k = 2 \frac{2 - \beta - \alpha}{\beta - \alpha} \frac{c_{k - 1} \l
 The eigenvalues of $A$ are in the range $\left[ \alpha, \beta \right]$.
 $\hat{M}$, $y^0 = x^0$ and $y^1 = x^1$ come from another iterative preconditioning technique such as Jacobi.
 
-While Jacobi and Chebyshev techniques are well established, there is some work to be done in providing efficient operator diagonal or block diagonal assembly, especially in the context of matrix-free Jacobians derived numerically or algorithmically.
 Efficient Jacobi and Chebyshev implementations are important as smoothers for multigrid preconditioners.
-% Should I try to mention why? I only have 5-10 pages to work with (technically), but I feel like this Section 4 is providing really brief overviews of the preconditioners I'm interested in implementing well in libCEED.
+As discussed in \cite{adams2003parallel}, the Chebyshev semi-iterative method is a particularly good choice as a smoother for multigrid.
+In multigrid preconditioning, the smoother targets the high-energy components, which corresponds to the larger eigenvalues in the spectrum of the operator.
+It is easier to provide adequate estimates of the maximal eigenvalue and Chebyshev is not too sensitive to estimation of this parameter.
+
+While Jacobi and Chebyshev techniques are well established, there is some work to be done in providing efficient operator diagonal or block diagonal assembly, especially in the context of matrix-free Jacobians derived numerically or algorithmically.
 
 % P-Multigrid
 % ------------------------------------------------------------------------------
