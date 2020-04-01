@@ -453,9 +453,36 @@ These approximate inverse techniques may be used with other domain decomposition
 These preconditioners are not appropriate for all PDEs.
 In these cases, splitting these PDE by fields and applying different preconditioners to different fields can yield an effective preconditioner.
 In this way, the above preconditioners can be composed to handle a wider range of problems.
+
+If the operator $A$ has the decomposition
+\begin{equation}
+A = \left( \begin{array}{cc}
+F & B\\
+B^T & C\\
+\end{array} \right)
+\label{block_form}
+\end{equation}
+then it can be decomposed via LDU as
+\begin{equation}
+A = \left( \begin{array}{cc}
+I & 0\\
+B^T F^{-1} & I\\
+\end{array} \right)
+\left( \begin{array}{cc}
+F & 0\\
+0 & -S\\
+\end{array} \right)
+\left( \begin{array}{cc}
+I & F^{-1} B\\
+0 & I\\
+\end{array} \right)
+\label{ldu_form}
+\end{equation}
+where $S = C + B^T F^{-1} B$ is the Schur complement of $F$ in $A$.
+The development of block multi-level preconditioners has been extensively explored \cite{elman2008taxonomy}.
+
 We are collaborating in the development of solver for Neo-Hookean hyperelasticity at finite strain in the incompressible regime.
-This solver will split the displacement and discontinuous pressure fields, applying $p$-multigrid as a preconditioner to the displacement fields and block Jacobi as a preconditioner to the discontinuous pressure field.
-% I don't know if this section adds a lot. Field splitting seems to make the work above much more useful, but I would imagine its well known. (Really, I've been in this high-order matrix-free corner for a while now, so I am starting to realize that I don't have the best sense of perspective on what is and is not well known or common.)
+This solver will split the displacement and discontinuous pressure fields, applying $p$-multigrid to the displacement fields and block Jacobi to the discontinuous pressure field as part of a block preconditioner.
 
 % ------------------------------------------------------------------------------
 % Conclusion
