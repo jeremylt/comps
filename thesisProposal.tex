@@ -259,7 +259,7 @@ If the PDE has multiple fields with the same basis, then $B$ and $D$ only need t
 
 As shown in Figure \ref{fig:assembledvsmatrixfree}, the number of values required per node to represent the Galerkin system of equations \ref{helmholz_galerkin} in a matrix-free fashion is constant with respect to polynomial order, while the number of values required for the assembled matrix representing the operator grows exponentially.
 The number of operations required to compute the matrix-vector product in a matrix-free fashion per node grows only linearly while the number of operations grows cubically for the assembled matrix.
-This means that the amount of data movement required per DoF decreases for matrix-free implementations while it remains relatively constant for assembled matrices.
+This means that the amount of data movement required per degree of freedom decreases for matrix-free implementations while it remains relatively constant for assembled matrices.
 
 We assumed a mesh with hexahedral elements for this analysis.
 In comparison to generation of simplex meshes, generation of high quality hexahedral meshes is a time intensive process.
@@ -391,14 +391,14 @@ Also, the number of nodes required for overlapping is significant at high-order.
 With a modest $2$ node overlap, approximately $\left( P + 4 \right)^3$ nodes are required in a subdomain compared to $P^3$ in an element.
 
 Balancing Domain Decomposition by Constraints (BDDC), first developed by Dohrmann \cite{dohrmann2003preconditioner}, is technique for non-overlapping domain decomposition.
-In BDDC, the coarse problem is solved on a reduced set of shared DoFs between subdomains, using element corners and edges in 3D.
+In BDDC, the coarse problem is solved on a reduced set of shared nodes between subdomains, using element corners and edges in 3D.
 BDDC is closely related to Finite Element Tearing and Interconnecting (FETI), developed by Farhat and Roux \cite{farhat1991method}, and subclasses of these two methods can be shown to be the same method \cite{fragakis2003mosaic}, \cite{klawonn2001feti}, and \cite{rixen1999theoretical}.
 
 For sufficiently high-order elements, we can treat each element as a subdomain.
-We can partition the degrees of freedoms into two groups, those on the interface $\Gamma$ and those in the interior $I$.
+We partition the degrees of freedoms into two groups, those on the interface $\Gamma$ and those in the interior $I$.
 We can therefore formulate the BDDC preconditioner, as seen in \cite{brown2019local}, as
 \begin{equation}
-M^{-1} = \left( R_1^T - \mathcal{H} J_D \right) \hat{A}^-1 \left( R_1 J_D^T \mathcal{H} \right)
+M^{-1} = \left( R_1^T - \mathcal{H} J_D \right) \hat{A}^{-1} \left( R_1 J_D^T \mathcal{H} \right)
 \label{bddc}
 \end{equation}
 where $\mathcal{H}$ is the direct sum of local operators $\mathcal{H}^{\left( i \right)} = - \left( A_{I I}^{\left( i \right)} \right)^{-1} \left( A_{\Gamma I}^{\left( i \right)} \right)^T$ that map the jump over subdomain interfaces $J_D$ to subdomain interiors by solving a local Dirichlet problem and giving zero for other values so
@@ -408,10 +408,9 @@ where $\mathcal{H}$ is the direct sum of local operators $\mathcal{H}^{\left( i 
 \end{equation}
 with $\delta_i \left( x \right) = 1 / \lvert \mathcal{N}_x \rvert$ and $\mathcal{N}_x$ is the set of indices of subdomains that have $x$ on their boundary.
 The function $\delta_i \left( x \right)$ is used to create the scaled injection operator $R_1$ such that interior values have $1$ and interface values have $\lvert \mathcal{N}_x \rvert$ entries each set to $\delta_i \left( x \right)$.
-% I will be the first to admit that my understanding of BDDC needs some refinement.
 
 The operator $\widetilde{A}^{-1}$ represents a subdomain solver.
-This subdomain solver can be a direct method, or an inexact solver as discussed by Li and Widlun in \cite{li2007use}.
+This subdomain solver can be a direct method or an inexact solver, as discussed by Li and Widlun in \cite{li2007use}.
 We are interested in investigating separable approximate inverses based on the Fast Diagonalization Method (FDM) for non-separable problems.
 
 Lynch, Rice, and Thomas introduced FDM in \cite{lynch1964direct}.
