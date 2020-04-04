@@ -52,12 +52,12 @@
 % Abstract
 % ------------------------------------------------------------------------------
 \begin{abstract}
-Global sparse matrices are no longer a good representation of high-order    finite element operators.
-Matrix-free operators offer superior performance, both with respect to FLOPs needed for evaluation and the memory transfer needed for a matrix-vector product.
-However, matrix-free methods require iterative solvers, which are sensitive to the condition number of the operator.
-Matrix-free operators with tensor product bases have the best efficiency at high-order, but the ill-conditioning slows iterative solver convergence.
-Preconditioners can accelerate convergence of these solvers with high-order operators.
-We discuss preconditioners that can be efficiently derived from matrix-free operators or formulated as matrix-free operators themselves, to include diagonal or block diagonal based techniques such as Jacobi and Chebyshev, multi-level techniques such a $p$-multigrid, and domain decomposition techniques such as Additive Schwartz and BDDC.
+Finite element methods with global sparse matrices are not adequate for modeling solid mechanics problems at large scale.
+We are particularly interested in efficient solvers for Neo-Hookean hyperelasticity at finite strain in the incompressible regime.
+High-order matrix-free operators offer superior performance in comparison to assembled sparse matrices, both with respect to FLOPs needed for evaluation and the memory transfer needed for a matrix-vector product.
+We describe a p-multigrid preconditioner that can be efficiently formulated with matrix-free operators.
+Specifically, we discuss traditional smoothers such as Jacobi and Chebyshev as well as a new domain decomposition based smoother using Balancing Domain Decomposition by Constraints with subdomain solvers using approximate separable inverses based on the Fast Diagonalization Method.
+With these techniques, we can solve substantially larger problems when compared to assembled global sparse matrices from low-order finite elements.
 \end{abstract}
 
 % ------------------------------------------------------------------------------
@@ -65,24 +65,28 @@ We discuss preconditioners that can be efficiently derived from matrix-free oper
 % ------------------------------------------------------------------------------
 \section{Introduction}
 
+Solid mechanics problems are commonly solved with finite element solvers using sparse matrix representations of low order finite elements.
+However, assembled sparse matrices are memory bound for sufficiently large problems.
+We explore using high-order finite elements implemented in a matrix-free fashion with appropriate preconditioners to solve solid mechanics problems at large scale.
+
+
 High-order finite element methods offer advantages over low-order finite elements; $hp$ finite elements offer high accuracy and exponential convergence \cite{demkowicz1989toward}, \cite{oden1989toward}, \cite{rachowicz1989toward}.
 However, high-order finite elements are less common because the operator or its Jacobian rapidly loses sparsity as the order is increased.
 Matrix-free implementation of high-order finite elements can provide the benefits of high-order methods without relying upon matrix sparsity for efficient implementation.
 
-High Performance Computing (HPC) hardware has seen improvements in Floating Point Operations per second (FLOPs) that outstrip improvements in memory and network bandwidth, as highlighted in McCalpin's invited talk an Supercomputing 2016 \cite{mccalpin2016memory}.
-These developments make memory and network bandwith a key limiting factor in the performance of HPC code.
-Under these hardware constraints, global sparse matrices are no longer a good representation of a high-order finite element operators.
-Matrix-free operators offer superior performance, both with respect to FLOPs needed for evaluation and the memory transfer needed for a matrix-vector product.
-However, matrix-free methods require iterative solvers, which are sensitive to the high condition numbers of high-order operator.
+High Performance Computing (HPC) hardware improvements in memory and network bandwidth have not kept up with improvements in Floating Point Operations per second (FLOPs), as highlighted in McCalpin's invited talk an Supercomputing 2016 \cite{mccalpin2016memory}.
+Under these hardware constraints, matrix-free operators offer superior performance, both with respect to the memory transfer and FLOPs needed for needed for evaluation of a matrix-vector product.
+However, iterative solvers are sensitive to the high condition numbers of high-order operator and require appropriate preconditioning to control total iterations and time to solution.
 
-In Section 2, we discuss the specific hardware limitations that constrain the performance of HPC application codes.
-In Section 3, we provide notation to describe arbitrary PDEs for matrix-free implementation and discuss the performance matrix-free implementation compared to assembled matrices for high-order finite elements on 3D hexahedral meshes.
-In Section 4, we discuss preconditioning techniques for high-order finite elements and highlight areas where future work can bring these techniques to new applications or improve the performance of these preconditioners.
+In Section \ref{hardware}, we discuss the specific hardware limitations that constrain the performance of HPC application codes.
+In Section \ref{notation}, we provide notation to describe arbitrary PDEs and their Jacobians for matrix-free implementation.
+In Section \ref{hyperelasticity}, we provide an overview of the solid mechanics problems we are exploring.
+In Section \ref{preconditioning}, we discuss preconditioning techniques for these solid mechanics problems.
 
 % ------------------------------------------------------------------------------
 % Hardware Limitations
 % ------------------------------------------------------------------------------
-\section{Hardware Limitations}
+\section{Hardware Limitations}\label{hardware}
 
 Two key performance metrics for HPC hardware are FLOPs and memory and network bandwidth.
 FLOPs is the more widely popularized of these two metrics; the Top 500 \cite{meuertop500} list tracks the 500 supercomputers with the highest peak  FLOPs, as measured by High-Performance Linpack (HPL) \cite{petitethpl}.
@@ -97,17 +101,13 @@ FLOPs have improved twice as much as memory and network bandwidth.
 This problem is exacerbated by network latency, which is decreasing at a rate of approximately 20\% per year, and memory latency, which is \textit{increasing} at a rate of approximately 20\%per year.
 
 \begin{figure}
-\begin{subfigure}{.32\textwidth}
-\includegraphics[width=.99\linewidth]{img/peakFlops}
-\caption{Maximum FLOPs}
+\begin{subfigure}{.49\textwidth}
+\includegraphics[width=.99\linewidth]{img/peakFlopsAndBandwidth}
+\caption{Peak FLOPs and Bandwidth}
 \end{subfigure}
-\begin{subfigure}{.32\textwidth}
-\includegraphics[width=.99\linewidth]{img/peakBandwidth}
-\caption{Maximum Bandwidth}
-\end{subfigure}
-\begin{subfigure}{.32\textwidth}
+\begin{subfigure}{.49\textwidth}
 \includegraphics[width=.99\linewidth]{img/peakRatio}
-\caption{Ratio}
+\caption{Ratio Bandwidth to FLOPs}
 \end{subfigure}
 \caption{System Balance}
 \label{fig:peakratio}
@@ -119,12 +119,11 @@ HPC applications need to be careful to control the memory bandwidth required for
 % ------------------------------------------------------------------------------
 % Matrix-Free Finite Elements
 % ------------------------------------------------------------------------------
-\section{Matrix-Free Finite Elements}
+\section{Matrix-Free Finite Elements}\label{notation}
 
-High-order finite elements implemented in a matrix-free fashion are one way to address the common performance bottlenecks for modern HPC hardware.
+High-order finite elements implemented in a matrix-free fashion are one way to address the memory bandwith bottlenecks for modern HPC hardware.
 In this section we develop notation to describe high-order matrix-free finite elements on unstructured meshes.
 This notation is applicable to both linear and non-linear PDEs.
-Furthermore, we compare the performance of matrix-free implementations and assembled matrices.
 
 % -- Notation ------------------------------------------------------------------
 \subsection{Notation}
@@ -137,10 +136,10 @@ If we consider Lagrange basis functions $\lbrace \phi_i \rbrace_{i = 1}^P$, we c
 We can define the corresponding matrices for 3D problems via tensor products
 \begin{equation}
 \begin{array}{c}
-\mathbf{B}   = B \otimes B \otimes B\\~\\
-\mathbf{D}_0 = D \otimes B \otimes B\\~\\
-\mathbf{D}_1 = B \otimes D \otimes B\\~\\
-\mathbf{D}_2 = B \otimes B \otimes D\\~\\
+\mathbf{B}   = B \otimes B \otimes B \hspace{5mm}
+\mathbf{D}_0 = D \otimes B \otimes B\\
+\mathbf{D}_1 = B \otimes D \otimes B \hspace{5mm}
+\mathbf{D}_2 = B \otimes B \otimes D\\
 \mathbf{W}   = W \otimes W \otimes W.
 \end{array}
 \label{basis_ops}
@@ -169,20 +168,25 @@ Given the weak form of an arbitrary PDE
 \end{array}
 \label{weak_form}
 \end{equation}
-where $\cdot$ represents contraction over fields and $:$ represents contraction over fields and spatial dimensions. The corresponding Galerkin system of equations is
+where $\cdot$ represents contraction over fields and $:$ represents contraction over fields and spatial dimensions.
+The pointwise representation of the weak form given by $f_0$ and $f_1$ does not depend upon discretization choices such as geometry or polynomial degree of the bases.
+The corresponding Galerkin system of equations is
 \begin{equation}
-\sum_e \mathcal{E} \left[ \left( \mathbf{B}^e \right)^T \mathbf{W}^e \Lambda \left( f_0 \left( u^e, \nabla u^e \right) \right) + \sum_{i = 0}^{d - 1} \left( \mathbf{D}_i^e \right)^T \Lambda \left( f_1 \left( u^e, \nabla u^e \right) \right) \right] = 0
+\sum_e \mathcal{E}^T \left[ \left( \mathbf{B}^e \right)^T \mathbf{W}^e \Lambda \left( f_0 \left( u^e, \nabla u^e \right) \right) + \sum_{i = 0}^{d - 1} \left( \mathbf{D}_i^e \right)^T \mathbf{W}^e \Lambda \left( f_1 \left( u^e, \nabla u^e \right) \right) \right] = 0
 \label{galerkin_form}
 \end{equation}
 where $u^e = \mathbf{B}^e \mathcal{E}^e u$ and $\nabla u^e = \lbrace \mathbf{D}_i^e \mathcal{E}^e u \rbrace_{i = 0}^{d - 1}$.
 
-In this formulation, the element restriction operators and basis operators can represent different element geometries and different degree polynomial bases, providing a flexible description for arbitrary meshes.
-The pointwise representation of the weak form given by $f_0$ and $f_1$ does not depend upon geometry or polynomial degree of the bases and is the same for all elements.
-Furthermore, this notation can be extended to handle separate fields with different bases, such as with mixed finite element methods.
-
 Dirichlet boundary conditions are represented in the element restriction operation by enforcing the specified values on the constrained nodes.
 Neumann or Robin boundary conditions are represented by adding boundary integral terms in the same form as \ref{galerkin_form} with appropriate basis and element restriction operators.
 Boundary integrals internal to the domain $\Omega$, such as face integrals in Discontinuous Galerkin methods, can also be represented using additional terms with corresponding bases and element restrictions.
+
+In this formulation, the element restriction operators and basis operators can represent different element geometries and different degree polynomial bases, providing a flexible description for arbitrary meshes.
+Furthermore, this notation can be extended to handle separate fields with different bases, such as with mixed finite element methods.
+
+In comparison to generation of simplex meshes, generation of high quality hexahedral meshes is a time intensive process.
+However, it is possible to generate meshes comprised predominately of high quality hexahedral elements with initial refinement of a simplex mesh without the costly process of fully converting a simplex mesh into hexahedral elements.
+Thus, the performance benefits of high-order matrix-free finite elements can be realized without substantial additional effort in generating a mesh exclusively composed of high quality hexahedral elements.
 
 % -- Linearization -------------------------------------------------------------
 \subsection{Linearization}
@@ -205,193 +209,217 @@ If these pointwise functions $f_{i, j}$ are not available analytically, they can
 With these pointwise functions, we can describe Jacobian-free Newton-Krylov methods, which are used to solve non-linear PDEs.
 Jacobian-free Newton-Krylov methods were summarized, with preconditioning strategies, by Knoll and Keyes in \cite{knoll2004jacobian}.
 
-% -- Performance ---------------------------------------------------------------
-\subsection{Performance}
+% ------------------------------------------------------------------------------
+% Hyperelasticity
+% ------------------------------------------------------------------------------
+\section{Hyperelasticity}\label{hyperelasticity}
 
-To demonstrate the performance benefits of high-order finite elements implemented in a matrix free fashion, we explore the specific case of the Helmholz equations.
-The strong form of the Helmholz equations is given by
+We currently consider two formulations used in solid mechanics applications: Neo-Hookean hyperelasticity at small strain and Neo-Hookean hyperelasticity at finite strain.
+We are primarily interested Neo-Hookean hyperelasticity at finite strain in the incompressible regime.
+
+% Small Strain
+% ------------------------------------------------------------------------------
+%\subsection{Small Strain}\label{smallstrain}
+
+%The strong form of the static balance of linear momentum at small strain for the three-dimensional linear elasticity problem is given by \cite{hughes2012finite}
+
+%\begin{equation}
+%\nabla \cdot \boldsymbol{\sigma} + \boldsymbol{g} = \boldsymbol{0}
+%\label{small_strong}
+%\end{equation}
+%where $\boldsymbol{\sigma}$ and $\boldsymbol{g}$ are stress and forcing functions, respectively.
+%We have the weak form
+%\begin{equation}
+%\int_{\Omega}{ \nabla \boldsymbol{v} \colon \boldsymbol{\sigma}} - \int_{\partial \Omega}{\boldsymbol{v} \cdot \left(\boldsymbol{\sigma} \cdot \hat{\boldsymbol{n}}\right)} - \int_{\Omega}{\boldsymbol{v} \cdot \boldsymbol{g}} = 0
+%\label{small_weak}
+%\end{equation}
+%where $\boldsymbol{\sigma} \cdot \hat{\boldsymbol{n}}|_{\partial \Omega}$ is replaced by an applied force/traction boundary condition.
+
+%The constitutive law (stress-strain relationship) is given by
+%\begin{equation}
+%\boldsymbol{\sigma} = \lambda \log(1 + \operatorname{trace} \boldsymbol{\epsilon}) \boldsymbol{I} + 2\mu \boldsymbol{\epsilon}
+%\label{small_constitutive}
+%\end{equation}
+%where strain is given by $\boldsymbol{\epsilon} = \dfrac{1}{2}\left(\nabla \boldsymbol{u} + \nabla \boldsymbol{u}^T \right)$ and the Lam{\'e} parameters are given by $\lambda = \frac{E \nu}{(1 + \nu)(1 - 2 \nu)}$ and $\mu = \frac{E}{2(1 + \nu)}$.
+
+%To derive the Newton linearization of the volumetric term,
+%\begin{equation}
+%\int_{\Omega} \nabla v : d \boldsymbol{\sigma}
+%\label{small_linear_weak}
+%\end{equation}
+%we begin by expressing the derivative,
+%\begin{equation}
+%d \boldsymbol{\sigma} = \dfrac{\partial \boldsymbol{\sigma}}{\partial \boldsymbol{\epsilon}} \colon d \boldsymbol{\epsilon}
+%\label{small_dconstitutive}
+%\end{equation}
+%where $d \nabla \boldsymbol{u} = \nabla d \boldsymbol{u}$, so $d \boldsymbol{\epsilon} = \dfrac{1}{2}\left( \nabla d \boldsymbol{u} + \nabla d \boldsymbol{u}^T \right)$.
+%Therefore,
+%\begin{equation}
+%d \boldsymbol{\sigma}  = \bar{\lambda} \cdot \operatorname{trace} d \boldsymbol{\epsilon} \cdot \boldsymbol{I} + 2\mu d \boldsymbol{\epsilon}
+%\label{small_dconstitutive_final}
+%\end{equation}
+%where $\bar{\lambda} = \dfrac{\lambda}{1 + \boldsymbol{\epsilon}_v }$ and volumetric strain is given by $\boldsymbol{\epsilon}_v = \sum_i \boldsymbol{\epsilon}_{ii}$.
+
+% Finite Strain
+% ------------------------------------------------------------------------------
+%\subsection{Finite Strain}
+
+In the total Lagrangian approach for the Neo-Hookean hyperelasticity problem, the discrete equations are formulated with respect to the reference configuration.
+In this formulation, we solve for displacement $u \left( X \right)$ in the reference frame $X$.
+Our notation is inspired by \cite{holzapfel2000nonlinear}.
+
+The strong form of the static balance of linear-momentum at finite strain is given by
 \begin{equation}
-\nabla^2 f = - k^2 f
-\label{helmholz_strong}
+- \nabla_X \cdot \boldsymbol{P} - \rho_0 \boldsymbol{g} = 0
+\label{finite_strong}
 \end{equation}
-The corresponding weak form is given by
+where $\nabla_X$ indicates that the gradient is calculated with respect to the reference configuration in the finite strain regime.
+$P$ and $\boldsymbol{g}$ are the first Piola-Kirchhoff stress tensor and the prescribed forcing function, respectively and $\rho_0$ is the reference mass density.
+The first Piola-Kirchhoff stress tensor is given by
 \begin{equation}
-\int_{\Omega} \nabla v : \nabla u - k^2 v \cdot u = 0
-\label{helmholz_weak}
+\boldsymbol{P} = \boldsymbol{F} \, \boldsymbol{S},
+\label{first_pk}
 \end{equation}
-with a Galerkin system of equations
+where $S$ is the second Piola-Kirchhoff stress tensor and $\boldsymbol{F} = \boldsymbol{I} + \nabla_X u$ is the deformation gradient.
+Different constitutive models can define $\boldsymbol{S}$.
+
+We therefore have the weak form
 \begin{equation}
-\sum_e \mathcal{E} \left[ \left( \mathbf{B}^e \right)^T \mathbf{W}^e \Lambda \left( \left( - k^2 \right) \mathbf{B}^e \mathcal{E}^e u \right) + \sum_{i = 0}^{d - 1} \left( \mathbf{D}_i^e \right)^T \mathbf{W}^e \Lambda \left( \lbrace \mathbf{D}_i^e \mathcal{E}^e u \rbrace_{i = 0}^{d - 1} \right) \right] = 0
-\label{helmholz_galerkin}
+\int_{\Omega}{\nabla_X \boldsymbol{v} \colon \boldsymbol{P}} - \int_{\Omega}{\boldsymbol{v} \cdot \rho_0 \boldsymbol{g}} - \int_{\partial \Omega}{\boldsymbol{v} \cdot (\boldsymbol{P} \cdot \hat{\boldsymbol{N}})} = 0
+\label{finite_weak}
 \end{equation}
-The total floating point operations and matrix entries required to apply the matrix-vector product for the operator representing the Galerkin \ref{helmholz_galerkin} depends upon a specific partitioning of the domain $\Omega$ into elements.
-For simplicity, we compare the total floating point operations and matrix entries required to apply the operator representing \ref{helmholz_galerkin} for a single high-order element with arbitrary hexahedral geometry.
-While fewer operations and matrix entries will be required on a domain decomposed into multiple elements due to the shared nodes on element boundaries, this comparison will adequately illustrate the relative merits of matrix-free implementations for high-order operators.
+where $\boldsymbol{P} \cdot \hat{\boldsymbol{N}}|_{\partial\Omega}$ is replaced by any prescribed force/traction boundary conditions written in terms of the reference configuration.
 
-With a polynomial basis of degree $P - 1$, a 3D hexahedral element has $P^3$ nodes.
-Therefore, the assembled matrix representing the Galerkin system of equations \ref{helmholz_galerkin} has $P^6$ floating point values.
-Additionally, applying a matrix-vector product requires $\mathcal{O} \left( 2 P^6 - P^3 \right)$ floating point operations.
+The Newton linearization of the volumentric term is given by
+\begin{equation}
+\int_{\Omega}{\nabla_X \boldsymbol{v} : d \boldsymbol{P}}
+\label{finite_weak_linear}
+\end{equation}
+were $d \boldsymbol{P} = d \boldsymbol{F} \boldsymbol{S} + \boldsymbol{F} d \boldsymbol{S}$ and $d \boldsymbol{S}$, as above, depends upon the exact constitutive model chosen to determine the second Piola-Kirchhoff stress tensor.
 
-On the other hand, a matrix-free representation of the Galerkin system of equations \ref{helmholz_galerkin} can exploit tensor contractions to reduce total required operator entries and floating point operations.
-With a $P$ point quadrature rule, the 1D basis operators, $B$ and $D$, have $2 P^2$ entries, the inverses of the Jacobians of the coordinate mappings requires $d^2 P^3$ entries, and the element quadrature weights require $P^3$ entries.
-Including the spatial frequency, $\left( d^2 + 1 \right) P^3 + 2 P^2 + 1$ floating point values are required.
-Using tensor contractions to interpolate the nodal values to the quadrature space requires $\mathcal{O} \left( P^{d + 1} \right)$ operations, and computing derivatives at the quadrature points requires an additional $\mathcal{O} \left( P^{d + 1} + \left( 2 d^2 - 1 \right) P^3 \right)$ operations.
-With appropriate precomputation of the geometric factors from the coordinate mapping, the pointwise application of the weak form and transpose basis operators can be applied in an additional $\mathcal{O} \left( 2 P^{d + 1} + \left( d + 1 \right) P^3 \right)$ operations.
-In total, the matrix-vector requires $\mathcal{O} \left( 4 P^{d + 1} + \left( 2 d^2 + d + 1 \right) P^3 \right)$ floating point operations.
+Omitting the full derivation for the sake of brevity, we are currently interested in the Neo-Hookean constitutive model.
+\begin{equation}
+\boldsymbol{S} = \lambda \log \left( \lvert \boldsymbol{F} \rvert \right) \boldsymbol{C}^{-1} + 2 \mu \boldsymbol{C}^{-1} \boldsymbol{E}
+\label{constitutive}
+\end{equation}
+where $\boldsymbol{C} = \boldsymbol{F}^T \boldsymbol{F}$ is the right Cauchy-Green tensor and $\boldsymbol{E} = \frac{1}{2} \left( \boldsymbol{C} - \boldsymbol{I} \right)$ is the Green-Lagrange strain tensor.
+The Lam{\'e} parameters are given by $\lambda = \frac{E \nu}{\left( 1 + \nu \right)\left( 1 - 2 \nu \right)}$ and $\mu = \frac{E}{2 \left( 1 + \nu \right)}$.
 
-For simplicity, we considered an arbitrary $P$ point quadrature rule.
-The analysis is similar for over-integration, $Q > P$, or under-integration, $Q < P$.
-If the $P$ LGL points are also used for the quadrature rule, then $2 P^3$ floating point operations are required to apply the basis operators, as $B = I$.
-If the PDE has multiple fields with the same basis, then $B$ and $D$ only need to be stored once for each field that shares this basis.
-
-\begin{figure}
-\begin{subfigure}{.495\textwidth}
-\includegraphics[width=.99\linewidth]{img/assembledVsMatrixFree}
-\caption{FLOPs and Bytes per DoF}
-\end{subfigure}
-\begin{subfigure}{.495\textwidth}
-\includegraphics[width=.99\linewidth]{img/assembledVsMatrixFreeBalance}
-\caption{Ratio of Bytes to FLOPs}
-\end{subfigure}
-\caption{Performance per DoF}
-\label{fig:assembledvsmatrixfree}
-\end{figure}
-
-As shown in Figure \ref{fig:assembledvsmatrixfree}, the number of values required per node to represent the Galerkin system of equations \ref{helmholz_galerkin} in a matrix-free fashion is constant with respect to polynomial order, while the number of values required for the assembled matrix representing the operator grows exponentially.
-The number of operations required to compute the matrix-vector product in a matrix-free fashion per node grows only linearly while the number of operations grows cubically for the assembled matrix.
-This means that the amount of data movement required per degree of freedom decreases for matrix-free implementations while it remains relatively constant for assembled matrices.
-
-We assumed a mesh with hexahedral elements for this analysis.
-In comparison to generation of simplex meshes, generation of high quality hexahedral meshes is a time intensive process.
-However, as the formulation \ref{galerkin_form} can handle meshes comprised of different finite element geometries, it is possible to generate meshes comprised predominately of high quality hexahedral elements with initial refinement of a simplex mesh without the costly process of fully converting a simplex mesh into hexahedral elements.
-Thus, the performance benefits of high-order matrix-free finite elements can be realized without substantial additional effort in generating a mesh exclusively composed of high quality hexahedral elements.
+We therefore have in our linearization
+\begin{equation}
+d \boldsymbol{S} = \frac{\partial \boldsymbol{S}}{\partial \boldsymbol{E}} : d \boldsymbol{E} = \lambda (\boldsymbol{C}^{-1} : d \boldsymbol{E}) \boldsymbol{C}^{-1} + 2 (\mu - \lambda \log \left( \lvert \boldsymbol{F} \rvert \right)) \boldsymbol{C}^{-1} d \boldsymbol{E} \boldsymbol{C}^{-1}
+\label{dconstitutive}
+\end{equation}
 
 % ------------------------------------------------------------------------------
 % Preconditioning
 % ------------------------------------------------------------------------------
-\section{Preconditioning}
+\section{Preconditioning}\label{preconditioning}
 
-As discussed in Section 3, high-order matrix-free finite elements offer performance benefits in comparison to assembled sparse matrix representations.
-When using matrix-free formulations, iterative solvers are required to solve the Galerkin system of equations.
-We are primarily interested in Krylov subspace methods such as Conjugate Gradient, first developed by Hestens and Stiefel \cite{hestenes1952methods}, and related methods by Lanczos \cite{lanczos1950iteration} and \cite{lanczos1952solution}.
+As discussed in Section \ref{hyperelasticity}, high-order matrix-free finite elements offer performance benefits in comparison to assembled sparse matrix representations.
+As with sparse matries, matrix-free formulations require iterative solvers for solve the Galerkin system of equations.
+We are primarily interested in Krylov subspace methods such as Conjugate Gradient (CG), first developed by Hestens and Stiefel \cite{hestenes1952methods}, and related methods by Lanczos \cite{lanczos1950iteration} and \cite{lanczos1952solution}.
 Krylov subspace methods are a natural fit for matrix-free finite elements, as these methods only require matrix-vector products to populate the Krylov subspace
 \begin{equation}
-\mathcal{K} \left( r_0, A, k \right) = \lbrace r_0, A r_0, \dots, A^{k - 1} r_0 \rbrace
+\mathcal{K} \left( r_0, \mathbf{A}, k \right) = \lbrace r_0, \mathbf{A} r_0, \dots, \mathbf{A}^{k - 1} r_0 \rbrace
 \label{krylov_space}
 \end{equation}
 which is used to construct increasingly accurate iterates $x^k$ that approach the true solution $x$.
 
 The iteration count to reach convergence of Krylov subspace methods is based upon condition number of the operator \cite{luenberger1973introduction} and high-order finite element operators have notoriously poor condition numbers \cite{hu1998bounds}.
-In this section we discuss preconditioners to control the condition number of high-order finite elements implemented in a matrix-free fashion.
+In this section we discuss preconditioners based upon $p$-type multigrid to control the condition number of high-order finite elements implemented in a matrix-free fashion.
 With these preconditioners, we can reduce total iteration count and thus total time to solution for these operators.
 
 Suppose we are solving the linear system given by
 \begin{equation}
-A x = b
+\mathbf{A} x = b
 \label{linear_eqn}
 \end{equation}
 via a Krylov subspace method.
 This linear system may come from the Galerkin system of equations of our PDE of interest or the Jacobian of our PDE of interest.
 We can improve the convergence of our Krylov method for this system by solving the preconditioned system
 \begin{equation}
-\left( M_L^{-1} A M_R^{-1} \right) \left( M_R x \right) = M_L^{-1} b
+\left( \mathbf{M}_L^{-1} \mathbf{A} \mathbf{M}_R^{-1} \right) \left( \mathbf{M}_R x \right) = \mathbf{M}_L^{-1} b
 \label{precond_eqn}
 \end{equation}
 via our Krylov method instead.
 
-We will investigate left preconditioning, where $M_R = I$ and $M_L^{-1} \approx A^{-1}$.
-Therefore, we will adopt the notation $M_L = M$.
-Many of the preconditioning methods we discuss can be used as iterative solvers.
-In these cases, a small number of iterations of the preconditioner $M$ are used to improve the Conjugate Gradient iterate $x^k$.
+We will investigate left preconditioning, where $\mathbf{M}_R = I$ and $\mathbf{M}_L^{-1} \approx \mathbf{A}^{-1}$.
+Therefore, we will adopt the notation $\mathbf{M}_L = \mathbf{M}$.
 
-% Jacobi and Chebyshev
-% ------------------------------------------------------------------------------
-\subsection{Jacobi and Chebyshev}
-
-Jacobi iterations for an assembled linear operators produce a new approximate solution $x^k$ via
-\begin{equation}
-x_i^k = \left( b_i - \sum_{j \neq i} a_{i j} x_j^{k - 1} \right) / a_{i i}
-\label{jacobi}
-\end{equation}
-For matrix-free implementations, these values are not directly available, as computation of the full assembled linear operator for preconditioning defeats the benefits of matrix-free methods; however, the true operator diagonal can be efficiently computed.
-
-For Jacobi preconditioning based upon the true diagonal of the operator $A$, we have $M = \text{diag} \left( A \right)$ and
-\begin{equation}
-x_i^k = b_i / a_{i i}
-\label{jacobi_diag}
-\end{equation}
-The more diagonally dominant the linear operator $A$ is, the better $M^{-1}$ approximates the true inverse $A^{-1}$.
-For multi-field PDEs, point block diagonal assembly offers a middle ground between diagonal assembly and operator assembly for operators that are insufficiently diagonally dominant for Jacobi preconditioning based upon the true diagonal to be an effective preconditioner.
-
-The Chebyshev semi-iterative method, analyzed extensively by Golub and Varga \cite{golub1961chebyshev}, can be viewed as an improvement of the Jacobi, or related Gauss-Seidel, techniques.
-In the Chebyshev method, we generate iterates of the form
-\begin{equation}
-y^k = \omega_k \left( y^{k - 1} - y^{k - 2} + \gamma r^{k - 1} \right) + y^{k - 2}
-\label{chebyshev}
-\end{equation}
-where $\omega_k = 2 \frac{2 - \beta - \alpha}{\beta - \alpha} \frac{c_{k - 1} \left( \mu \right)}{c_k \left( \mu \right)}$, $\gamma = 2 \ \left( 2 - \alpha - \beta \right)$, $\hat{M} r^{k - 1} = b - A y^{k - 1}$, and $c_i$ are the Chebyshev polynomials with $\mu = 1 + \frac{1 - \beta}{\beta - \alpha}$.
-The eigenvalues of $A$ are in the range $\left[ \alpha, \beta \right]$.
-$\hat{M}$, $y^0 = x^0$ and $y^1 = x^1$ come from another iterative preconditioning technique such as Jacobi.
-
-Efficient Jacobi and Chebyshev implementations are important as smoothers for multigrid preconditioners.
-As discussed in \cite{adams2003parallel}, the Chebyshev semi-iterative method is a particularly good choice as a smoother for multigrid.
-In multigrid preconditioning, the smoother targets the high-energy components, which corresponds to the larger eigenvalues in the spectrum of the operator.
-It is easier to provide adequate estimates of the maximal eigenvalue and Chebyshev is not too sensitive to estimation of this parameter.
-
-While Jacobi and Chebyshev techniques are well established, there is some work to be done in providing efficient operator diagonal or block diagonal assembly, especially in the context of matrix-free Jacobians derived numerically or algorithmically.
+Note that preconditioning CG is more restrictive than other Krylov methods since the CG algorithm requires preconditioners to preserve the symmetric positive definite property of the operator representing the Galerkin system.
+Thus, preconditioning strategies for Conjugate Gradient are more restrictive and can be applied to more general Krylov methods, such as generalized minimal residual method (GMRES).
 
 % P-Multigrid
 % ------------------------------------------------------------------------------
-\subsection{P-Multigrid}
+\subsection{P-Multigrid}\label{p-multigrid}
 
 Multigrid methods are popular multi-level techniques that provide resolution independent convergence rates.
 $p$-type multigrid, developed by Ronquist and Patera \cite{ronquist1987spectral}, is a natural choice for high-order finite elements on an unstructured mesh and can be implemented with operators represented as in \ref{galerkin_form}.
 Ronquist and Patera declared $p$-multigrid \textit{sensibly independent} of number of elements and polynomial degree of the element bases.
 Multigrid can be used as an independent solver, but we investigate the use of multigrid as a preconditioner for a Krylov method.
 
-There has been work by Heys, Manteuffel, McCormick, and Olson demonstrating the feasibility of algebraic multigrid for high-order finite elements \cite{heys2005algebraic}; however, algebraic multigrid requires assembly of the finite element operator, which defeats the benefits of matrix-free implementation.
-There are examples of using $h$-multigrid, such as \cite{davydov2019matrix}; however $p$-multigrid offers more flexibility with respect to meshes in comparison to $h$-multigrid as it does not require aggregation of multiple elements into larger elements.
-
-For $p$-multigrid with nodal bases, the prolongation operator interpolates to a higher order basis nodes and is defined by
-\begin{equation}
-P_{p - 1}^p = m_p^{-1} \sum_e \mathcal{E}_p^T \mathbf{B}_{p - 1}^p \mathcal{E}_{p - 1}
-\label{mg_prolong}
-\end{equation}
-where $\mathbf{B}_{p - 1}^p$ interpolates from a basis of degree $p - 1$ to degree $p$ and $m_p = \mathcal{E}_p^T \mathcal{E}_p 1$ counts the multiplicity of shared nodes between elements.
-The restriction operator is defined as the transpose of the prolongation operator, $R_{p - 1}^p = \left( P_{p - 1}^p \right)^T$.
-These operators can be implemented matrix-free, in the same fashion as \ref{galerkin_form}.
-
-With these components we can implement $p$-multigrid, using the algorithm described by May, Sanan, Rupp, Knepley, and Smith in \cite{may2016extreme}
-
-\begin{algorithm}
-\caption{Multigrid Algorithm}
-\label{multigrid}
-\begin{algorithmic}[1]
-\State Compute $x^k$
-\State $x^k \gets x^k + \hat{M}^{-1} \left( b - A x^k \right)$ \Comment{pre-smooth $m$ times}
-\State $r = R \left( b - A x^k \right)$ \Comment{restrict the residual}
-\State $A_c e = r$ \Comment{Solve on coarse grid (may involve additional levels)}
-\State $x^k \gets x^k + P e$ \Comment{prolongate error}
-\State $x^k \gets x^k + \hat{M}^{-1} \left( b - A x^k \right)$ \Comment{post-smooth $m$ times}
-\end{algorithmic}
-\end{algorithm}
-
-With even modest order finite elements, such as degree $4$, $p$-multigrid can substantially reduce the size of the global solution vector by a factor of $P^3 / 8$, which makes assembly of the finite element operator on the coarse grid tractable so that direct solvers such as Algebraic Multigrid can be used to solve the coarse problem.
+There has been work by Heys, Manteuffel, McCormick, and Olson demonstrating the feasibility of algebraic multigrid (AMG) for high-order finite elements \cite{heys2005algebraic}; however, algebraic multigrid requires assembly of the finite element operator, which defeats the benefits of matrix-free implementation.
+There are examples of using $h$-multigrid for matrix-free finite elements in solid mechanics, such as \cite{davydov2019matrix}; however $p$-multigrid offers more flexibility with respect to meshes in comparison to $h$-multigrid as it does not require aggregation of multiple elements into larger elements.
 
 While the theoretical foundation for $p$-multigrid implemented in a matrix-free fashion on unstructured meshes has existed for quite some time, there do not appear to be many examples of these techniques being combined for practical problems.
 We are collaborating on a paper implementing these techniques in the context of Neo-Hookean hyperelasticity at finite strain.
 This is a new contribution to the solid mechanics community, which typically uses low order finite elements and assembled sparse matrices.
 Overall, the use of high-order finite elements with $p$-multigrid is under-explored for solid mechanics problems, especially with high-contrast or nearly incompressible materials.
 
+Application of $p$-multigrid follows the typical multigrid algorithm \ref{multigrid}, such as described by \cite{brandt1982guide}
+\begin{algorithm}
+\caption{Multigrid Algorithm}
+\label{multigrid}
+\begin{algorithmic}[1]
+\State Compute $x^k$
+\State $x^k \gets x^k + \hat{\mathbf{M}}^{-1} \left( b - \mathbf{A} x^k \right)$ \Comment{pre-smooth $m$ times}
+\State $r = \mathbf{R} \left( b - \mathbf{A} x^k \right)$ \Comment{restrict the residual}
+\State $\mathbf{A}_c e = r$ \Comment{Solve on coarse grid (may involve additional levels)}
+\State $x^k \gets x^k + \mathbf{P} e$ \Comment{prolongate error}
+\State $x^k \gets x^k + \hat{\mathbf{M}}^{-1} \left( b - \mathbf{A} x^k \right)$ \Comment{post-smooth $m$ times}
+\end{algorithmic}
+\end{algorithm}
+where $\mathbf{P}$ is the grid prolongation operator, $\mathbf{R}$ the grid restriction operator, $\hat{\mathbf{M}}$ a separate preconditioner used for smoothing, and $\mathbf{A}_c$ represents solving the error correction problem on the coarse grid, which may involve recursively applying $p$-multigrid.
+
+For $p$-multigrid with nodal bases, the prolongation operator interpolates using the lower order basis functions to the higher order basis nodes and is defined by
+\begin{equation}
+\mathbf{P}_{p - 1}^p = \Lambda \left( m_p^{-1} \right) \sum_e \mathcal{E}_p^T \mathbf{B}_{p - 1}^p \mathcal{E}_{p - 1}
+\label{mg_prolong}
+\end{equation}
+where $\mathbf{B}_{p - 1}^p$ interpolates from a basis of degree $p - 1$ to degree $p$ and $m_p = \mathcal{E}_p^T \mathcal{E}_p 1$ counts the multiplicity of shared nodes between elements.
+To preserve symmetry and prevent aliasing, the restriction operator is defined as the transpose of the prolongation operator, $\mathbf{R}_{p - 1}^p = \left( \mathbf{P}_{p - 1}^p \right)^T$.
+These operators can be implemented matrix-free, in the same fashion as \ref{galerkin_form}.
+
+Even modest order finite elements, such as degree $4$, $p$-multigrid can substantially reduce the size of the global solution vector by a factor of approximately $P^3 / 8$.
+Thus, assembly of the finite element operator on the coarse grid, $\mathbf{A}_c$, becomes tractable and direct solvers can be used to solve the coarse problem.
+We use AMG for a coarse grid solver, which allows us to leverage the benefits discussed by Heys, Manteuffel, McCormick, and Olson \cite{heys2005algebraic}.
+
+% Smoothers
+% ------------------------------------------------------------------------------
+\subsection{Smoothers}\label{smoothers}
+
+In multigrid preconditioning, the smoother is an important component that helps resolve the error correction on a given multigrid level.
+The smoother targets the high-energy components, which corresponds to the larger eigenvalues in the spectrum of the operator.
+Below we discuss the more traditional Jacobi and Chebyshev smoothers as well as a proposed domain decomposition based technique.
+These smoothers can also be used as preconditioners outside the context of multigrid.
+
+\subsubsection{Jacobi and Chebyshev}
+
+Efficient Jacobi and Chebyshev implementations are important as smoothers for multigrid preconditioners.
+As discussed in \cite{adams2003parallel}, the Chebyshev semi-iterative method is a particularly good choice as a smoother for parallel multigrid implementations.
+It is easier to provide adequate estimates of the maximal eigenvalue and Chebyshev is not too sensitive to estimation of this parameter.
+
+Currently, we use the Chekyshev semi-iterative method with our current Neo-Hookean hyperelasticity solver.
+While Jacobi and Chebyshev techniques are well established, there is some work to be done in providing efficient operator diagonal or block diagonal assembly, especially in the context of matrix-free Jacobians derived numerically or algorithmically.
+
 % Domain Decomposition
 % ------------------------------------------------------------------------------
-\subsection{Domain Decomposition}
+\subsubsection{Domain Decomposition}\label{domaindecomposition}
 
-Domain decomposition methods are another popular class of preconditioners for high-order finite elements.
-Fisher, with others, has used overlapping Schwarz for high-order finite elements or spectral elements with fluid dynamics problems, such as in \cite{fischer1997overlapping} and \cite{fischer2005hybrid}.
-As with $h$-type multigrid, overlapping Schwarz techniques require additional information about the mesh in order to provide overlapping subdomains based upon element boundaries.
-Also, the number of nodes required for overlapping is significant at high-order.
-With a modest $2$ node overlap, approximately $\left( P + 4 \right)^3$ nodes are required in a subdomain compared to $P^3$ in an element.
+Domain decomposition methods are another popular class of preconditioners that can provide smoothers for multigrid methods.
+Fisher, among others, has used overlapping Schwarz for high-order finite elements or spectral elements with fluid dynamics problems, such as in \cite{fischer1997overlapping} and \cite{fischer2005hybrid}.
+However, overlapping Schwarz requires additional memory movement and computation due to the overlap.
 
 Balancing Domain Decomposition by Constraints (BDDC), first developed by Dohrmann \cite{dohrmann2003preconditioner}, is technique for non-overlapping domain decomposition.
 In BDDC, the coarse problem is solved on a reduced set of shared nodes between subdomains, using element corners and edges in 3D.
@@ -401,47 +429,57 @@ For sufficiently high-order elements, we can treat each element as a subdomain.
 We partition the degrees of freedoms into two groups, those on the interface $\Gamma$ and those in the interior $I$.
 We can therefore formulate the BDDC preconditioner, as seen in \cite{brown2019local}, as
 \begin{equation}
-M^{-1} = \left( R_1^T - \mathcal{H} J_D \right) \hat{A}^{-1} \left( R_1 J_D^T \mathcal{H} \right)
+\hat{\mathbf{M}}^{-1} = \left( \mathbf{R}_1^T - \mathcal{H} \mathbf{J}_D \right) \hat{\mathbf{A}}^{-1} \left( \mathbf{R}_1 \mathbf{J}_D^T \mathcal{H} \right)
 \label{bddc}
 \end{equation}
-where $\mathcal{H}$ is the direct sum of local operators $\mathcal{H}^{\left( i \right)} = - \left( A_{I I}^{\left( i \right)} \right)^{-1} \left( A_{\Gamma I}^{\left( i \right)} \right)^T$ that map the jump over subdomain interfaces $J_D$ to subdomain interiors by solving a local Dirichlet problem and giving zero for other values so
+where $\mathcal{H}$ is the direct sum of local operators $\mathcal{H}^{\left( i \right)} = - \left( \mathbf{A}_{I I}^{\left( i \right)} \right)^{-1} \left( A_{\Gamma I}^{\left( i \right)} \right)^T$ that map the jump over subdomain interfaces $J_D$ to subdomain interiors by solving a local Dirichlet problem and giving zero for other values so
 \begin{equation}
-\left( J_D^T v \left( x \right) \right)^{\left( i \right)} = \sum_{j \in \mathcal{N}_x} \left( \delta_j \left( x \right) v^{\left( i \right)} \left( x \right) - \delta_i \left( x \right) v^{\left( j \right)} \left( x \right) \right) \forall x \in \Gamma_i
+\left( \mathbf{J}_D^T v \left( x \right) \right)^{\left( i \right)} = \sum_{j \in \mathcal{N}_x} \left( \delta_j \left( x \right) v^{\left( i \right)} \left( x \right) - \delta_i \left( x \right) v^{\left( j \right)} \left( x \right) \right) \forall x \in \Gamma_i
 \label{sub_jump}
 \end{equation}
 with $\delta_i \left( x \right) = 1 / \lvert \mathcal{N}_x \rvert$ and $\mathcal{N}_x$ is the set of indices of subdomains that have $x$ on their boundary.
-The function $\delta_i \left( x \right)$ is used to create the scaled injection operator $R_1$ such that interior values have $1$ and interface values have $\lvert \mathcal{N}_x \rvert$ entries each set to $\delta_i \left( x \right)$.
+The function $\delta_i \left( x \right)$ is used to create the scaled injection operator $\mathbf{R}_1$ such that interior values have $1$ and interface values have $\lvert \mathcal{N}_x \rvert$ entries each set to $\delta_i \left( x \right)$.
 
-The operator $\widetilde{A}^{-1}$ represents a subdomain solver.
-This subdomain solver can be a direct method or an inexact solver, as discussed by Li and Widlun in \cite{li2007use}.
-We are interested in investigating separable approximate inverses based on the Fast Diagonalization Method (FDM) for non-separable problems.
+The operator $\widetilde{\mathbf{A}}^{-1}$ represents a subdomain solver.
+This subdomain solver is often a direct method; however, Li and Widlun demonstrated the feasibility of inexact solvers in \cite{li2007use}.
+
+% Domain Decomposition
+% ------------------------------------------------------------------------------
+\subsubsection{Subdomain Solvers}\label{subdomainsolvers}
+
+We are investigating separable approximate inverses based on the Fast Diagonalization Method (FDM) for non-separable problems as inexact subdomain solvers.
 
 Lynch, Rice, and Thomas introduced FDM in \cite{lynch1964direct}.
 FDM directly solves separable linear equations based upon tensor products of lower dimension operators.
-For a single element, the Galerkin system of equations \ref{helmholz_galerkin} for the 3D Helmholz problem \ref{helmholz_strong} can be rewritten as
+The screened Poisson operator, $\left( \alpha^2 - \nabla^2 \right) u$, has the Galerkin system of equations
 \begin{equation}
-A = \sum_{i = 0}^{d - 1} \mathbf{K}_i - k^2 \mathbf{M}
+\sum_e \mathcal{E}^T \left[ \left( \mathbf{B}^e \right)^T \mathbf{W}^e \Lambda \left( \left( \alpha^2 \right) \mathbf{B}^e \mathcal{E}^e u \right) + \sum_{i = 0}^{d - 1} \left( \mathbf{D}_i^e \right)^T \mathbf{W}^e \Lambda \left( \lbrace \mathbf{D}_i^e \mathcal{E}^e u \rbrace_{i = 0}^{d - 1} \right) \right]
+\label{screened_galerkin}
+\end{equation}
+For a single element, the Galerkin system \ref{screened_galerkin} for the 3D screened Poisson problem can be rewritten as
+\begin{equation}
+A = \alpha^2 \mathbf{M} + \sum_{i = 0}^{d - 1} \mathbf{K}_i
 \label{helmholz_stiffness}
 \end{equation}
 where $\mathbf{M} = \mathbf{B}^T \mathbf{W} \mathbf{B}$, $\mathbf{K}_i = \mathbf{D}_i^T \mathbf{W} \mathbf{D}_i$, and so on.
 In this example, we neglect the terms arising from the coordinate mapping as they can result in a non-separable operator.
 
 These operators $\mathbf{M}$ and $\mathbf{K}$ can be written in terms of the 1D operators, $M = B^T W B$ and $K = D^T W D$, as $\mathbf{M} = M \otimes M \otimes M$, $\mathbf{D}_0 = D \otimes M \otimes M$, and so on.
-Provided that $K$ is symmetric and $M$ is symmetric and positive definite, we can simultaneously diagonalize $K$ and $M$, yielding $\mathcal{X}^T M \mathcal{X} = I$ and $\mathcal{X}^T K \mathcal{X} = L$.
+As $K$ is symmetric and $M$ is symmetric positive definite, we can simultaneously diagonalize $K$ and $M$, yielding $\mathcal{X}^T M \mathcal{X} = I$ and $\mathcal{X}^T K \mathcal{X} = L$.
 With these pseudoeigenvalues and pseudoeigenvectors, we can rewrite $A$ as
 \begin{equation}
-A = \boldsymbol{\mathcal{X}} \left( \sum_{i = 0}^{d - 1} \mathbf{L} - k^2 \mathbf{I} \right) \boldsymbol{\mathcal{X}}^T
+A = \boldsymbol{\mathcal{X}} \left( \alpha^2 \mathbf{I} + \sum_{i = 0}^{d - 1} \mathbf{L}_i \right) \boldsymbol{\mathcal{X}}^T
 \label{helmholz_diag}
 \end{equation}
 with inverse
 \begin{equation}
-A^{-1} = \boldsymbol{\mathcal{X}}^T \left( \sum_{i = 0}^{d - 1} \mathbf{L}_i - k^2 \mathbf{I} \right)^{-1} \boldsymbol{\mathcal{X}}
+A^{-1} = \boldsymbol{\mathcal{X}}^T \left( \alpha^2 \mathbf{I} + \sum_{i = 0}^{d - 1} \mathbf{L}_i \right)^{-1} \boldsymbol{\mathcal{X}}
 \label{helmholz_inv}
 \end{equation}
 where $\boldsymbol{\mathcal{X}} = \mathcal{X} \otimes \mathcal{X} \otimes \mathcal{X}$, $\mathbf{L}_0 = L \otimes I \otimes I$, and so on.
 Notice that if we treat $\boldsymbol{\mathcal{X}}$ as a basis operation, these inverses can be described and implemented matrix-free, as in \ref{galerkin_form}.
 
-With non-separable operators $A$, a suitable choice of $\left( \sum_{i = 0}^{d - 1} \mathbf{L}_i - k^2 I_3 \right)$ can produce suitable approximate subdomain solvers.
+With non-separable operators $A$, a suitable choice of $\left( \alpha^2 \mathbf{I} + \sum_{i = 0}^{d - 1} \mathbf{L}_i \right)$ can produce suitable approximate subdomain solvers.
 Fisher, Miller, and Tufo demonstrated in \cite{fischer2000overlapping} that while FDM cannot be used for arbitrarily deformed subdomains, defining the diagonalization over a parallelepiped with average dimensions in each coordinate direction is adequate for preconditioning.
 For PDEs with arbitrarily deformed subdomains and non-linear pointwise functions $f_0$ and $f_1$, early experiments indicate that a suitable approximate inverse might be constructed by correctly selecting pseudoeigenvalues to use with pseudoeigenvectors from the mass and stiffness matrices given above in \ref{helmholz_stiffness}.
 These approximate inverse techniques may be used with other domain decomposition techniques; however, overlapping techniques may require significant additional computation due to the additional nodes in each subdomain.
@@ -489,13 +527,11 @@ This solver will split the displacement and discontinuous pressure fields, apply
 % ------------------------------------------------------------------------------
 \section{Conclusion}
 
-We discussed the performance benefits of high-order matrix-free finite elements.
-High-order finite element operators solved with Krylov subspace methods require preconditioning to improve convergence and time to solution.
-
+We discussed the benefits of high-order matrix-free finite elements for solid mechanics problems.
 We highlighted several areas for future improvement in preconditioning for high-order finite element operators implemented in a matrix-free fashion.
-While Jacobi, block Jacobi, and Chebyshev semi-iterative preconditioning is not new, these techniques are important, on their own or as smoothers for other techniques, and there is work to be done on providing efficient operator diagonal or point block diagonal assembly.
 $p$-multigrid with matrix-free prolongation and restriction operators is a natural fit for high-order matrix-free finite elements and has proven effective in solid mechanics problems.
-BDDC is another attractive technique that can be implemented in a matrix-free fashion, and FDM based matrix-free separable approximate inverses may provide suitable subdomain solvers for BDDC and other domain decomposition techniques with non-linear and non-separable problems.
+While Jacobi and Chebyshev semi-iterative preconditioning is not new, these techniques are important as smoothers for multigrid methods, and there is work to be done on providing efficient operator diagonal or point block diagonal assembly.
+BDDC is another attractive technique for smoothing multigrid methods, and FDM based matrix-free separable approximate inverses may provide suitable subdomain solvers for BDDC and other domain decomposition techniques with non-linear and non-separable problems.
 
 % ------------------------------------------------------------------------------
 % Acknowledgements

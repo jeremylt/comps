@@ -35,7 +35,7 @@
 }
 
 @misc{kruppcomparison,
-  title={CPU-GPU-MIC Comparision Charts},
+  title="{CPU-GPU-MIC} Comparision Charts",
   author={Karl Rupp},
   url={https://github.com/karlrupp/cpu-gpu-mic-comparison},
   year={2020}
@@ -59,7 +59,7 @@
 }
 
 @article{petitethpl,
-  title={HPL-a portable implementation of the high-performance Linpack benchmark for distributed-memory computers},
+  title="{HPL}-a portable implementation of the high-performance Linpack benchmark for distributed-memory computers",
   author={Petitet, Antoine and Whaley, R. Clint and Dongarra, Jack and Cleary, Andrew},
   url={http://www. netlib. org/benchmark/hpl/},
   year={2004}
@@ -81,7 +81,7 @@
   year = {2014},
   month = {05},
   pages = {},
-  title = {HPGMG 1.0: A Benchmark for Ranking High Performance Computing Systems},
+  title = "{HPGMG} 1.0: A Benchmark for Ranking High Performance Computing Systems",
   journal = {LBNL Technical Report}
 }
 
@@ -101,7 +101,7 @@
 }
 
 @article{knoll2004jacobian,
-  title={Jacobian-free Newton--Krylov methods: a survey of approaches and applications},
+  title="Jacobian-free {Newton--Krylov} methods: a survey of approaches and applications",
   author={Knoll, Dana A and Keyes, David E},
   journal={Journal of Computational Physics},
   volume={193},
@@ -113,10 +113,30 @@
 
 
 % ------------------------------------------------------------------------------
+% Hyperelasticity
+% ------------------------------------------------------------------------------
+@book{hughes2012finite,
+  title={The finite element method: linear static and dynamic finite element analysis},
+  author={Hughes, Thomas JR},
+  year={2012},
+  publisher={Courier Corporation}
+}
+
+@Book{holzapfel2000nonlinear,
+ author={Holzapfel, Gerhard},
+ title={Nonlinear solid mechanics: a continuum approach for engineering},
+ publisher={Wiley},
+ year={2000},
+ address={Chichester New York},
+ isbn={978-0-471-82319-3}
+}
+
+
+% ------------------------------------------------------------------------------
 % Preconditioning
 % ------------------------------------------------------------------------------
 @article{hestenes1952methods,
-  title={Methods of Conjugate Gradients for Solving Linear Systems1},
+  title={Methods of Conjugate Gradients for Solving Linear Systems},
   author={Hestenes, Magnus R and Stiefel, Eduard},
   journal={Journal of Research of the National Bureau of Standards},
   volume={49},
@@ -167,7 +187,7 @@
 }
 
 @article{adams2003parallel,
-  title={Parallel multigrid smoothing: polynomial versus Gauss--Seidel},
+  title="Parallel multigrid smoothing: polynomial versus {Gauss-Seidel}",
   author={Adams, Mark and Brezina, Marian and Hu, Jonathan and Tuminaro, Ray},
   journal={Journal of Computational Physics},
   volume={188},
@@ -179,7 +199,7 @@
 
 % -- Multigrid -----------------------------------------------------------------
 @article{ronquist1987spectral,
-  title={Spectral element multigrid. I. Formulation and numerical results},
+  title="Spectral element multigrid. {I}. Formulation and numerical results",
   author={R{\o}nquist, Einar M and Patera, Anthony T},
   journal={Journal of Scientific Computing},
   volume={2},
@@ -208,11 +228,20 @@
 }
 
 @inproceedings{may2016extreme,
-  title={Extreme-scale multigrid components within PETSc},
+  title="Extreme-scale multigrid components within {PETSc}",
   author={May, Dave A and Sanan, Patrick and Rupp, Karl and Knepley, Matthew G and Smith, Barry F},
   booktitle={Proceedings of the Platform for Advanced Scientific Computing Conference},
   pages={1--12},
   year={2016}
+}
+
+@incollection{brandt1982guide,
+  title={Guide to multigrid development},
+  author={Brandt, Achi},
+  booktitle={Multigrid methods},
+  pages={220--312},
+  year={1982},
+  publisher={Springer}
 }
 
 % -- Domain Decomposition ------------------------------------------------------
@@ -228,7 +257,7 @@
 }
 
 @incollection{fischer2005hybrid,
-  title={Hybrid Schwarz-multigrid methods for the spectral element method: Extensions to Navier-Stokes},
+  title="Hybrid {Schwarz}-multigrid methods for the spectral element method: Extensions to {Navier-Stokes}",
   author={Fischer, Paul F and Lottes, James W},
   booktitle={Domain Decomposition Methods in Science and Engineering},
   pages={35--49},
@@ -270,7 +299,7 @@
 }
 
 @article{klawonn2001feti,
-  title={FETI and Neumann-Neumann iterative substructuring methods: connections and new results},
+  title="{FETI} and {Neumann-Neumann} iterative substructuring methods: connections and new results",
   author={Klawonn, Axel and Widlund, Olof},
   journal={Communications on Pure and Applied Mathematics: A Journal Issued by the Courant Institute of Mathematical Sciences},
   volume={54},
@@ -281,7 +310,7 @@
 }
 
 @article{rixen1999theoretical,
-  title={Theoretical comparison of the FETI and algebraically partitioned FETI methods, and performance comparisons with a direct sparse solver},
+  title="Theoretical comparison of the {FETI} and algebraically partitioned {FETI} methods, and performance comparisons with a direct sparse solver",
   author={Rixen, Daniel J and Farhat, Charbel and Tezaur, Radek and Mandel, Jan},
   journal={International Journal for Numerical Methods in Engineering},
   volume={46},
@@ -303,7 +332,7 @@
 }
 
 @article{li2007use,
-  title={On the use of inexact subdomain solvers for BDDC algorithms},
+  title="On the use of inexact subdomain solvers for {BDDC} algorithms",
   author={Li, Jing and Widlund, Olof B},
   journal={Computer Methods in Applied Mechanics and Engineering},
   volume={196},
@@ -325,7 +354,7 @@
 }
 
 @incollection{fischer2000overlapping,
-  title={An overlapping Schwarz method for spectral element simulation of three-dimensional incompressible flows},
+  title="An overlapping {Schwarz} method for spectral element simulation of three-dimensional incompressible flows",
   author={Fischer, Paul F and Tufo, Henry M and Miller, NI},
   booktitle={Parallel Solution of Partial Differential Equations},
   pages={159--180},
@@ -335,7 +364,7 @@
 
 % -- Split ---------------------------------------------------------------------
 @article{elman2008taxonomy,
-  title={A taxonomy and comparison of parallel block multi-level preconditioners for the incompressible Navier--Stokes equations},
+  title="A taxonomy and comparison of parallel block multi-level preconditioners for the incompressible {Navier-Stokes} equations",
   author={Elman, Howard and Howle, Victoria E and Shadid, John and Shuttleworth, Robert and Tuminaro, Ray},
   journal={Journal of Computational Physics},
   volume={227},
