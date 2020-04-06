@@ -334,15 +334,11 @@ d \boldsymbol{S} = \frac{\partial \boldsymbol{S}}{\partial \boldsymbol{E}} : d \
 \label{dconstitutive}
 \end{equation}
 
-% -- Verification --------------------------------------------------------------
-\subsection{Verification}
+% -- Validation  ---------------------------------------------------------------
+\subsection{Validation}
 
 To verify the validity of the discretization, we performed a self convergence study.
-For this study, we deformed a rectangular beam by performing a one radian axial shift on the right side of the beam while lowering the left side of the beam, as shown in Figure \ref{deformation}.
-
-The results of this study can be seen in Figure \ref{fig:convergence}.
-On the left, we fix the polynomial degree of the basis while doubling the number of elements in each direction.
-On the right, we fix the number of elements while increasing the polynomial degree of the basis.
+For this study, we deformed a rectangular beam by performing a one radian axial shift on the right side of the beam while lowering the left side of the beam, as shown in Figure \ref{fig:deformation}.
 
 \begin{figure}
 \begin{subfigure}{.495\textwidth}
@@ -356,6 +352,10 @@ On the right, we fix the number of elements while increasing the polynomial degr
 \caption{Deformation}
 \label{fig:deformation}
 \end{figure}
+
+The results of this study can be seen in Figure \ref{fig:convergence}.
+On the left, we fix the polynomial degree of the basis while doubling the number of elements in each direction.
+On the right, we fix the number of elements while increasing the polynomial degree of the basis.
 
 \begin{figure}
 \begin{subfigure}{.495\textwidth}
