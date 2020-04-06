@@ -16,6 +16,7 @@
 \usepackage{epstopdf}
 \usepackage{algpseudocode} % Pseudo code and algorithms
 \usepackage{subcaption}    % Subfigures
+\usepackage{placeins}      % Float barriers
 \ifpdf
   \DeclareGraphicsExtensions{.eps,.pdf,.png,.jpg}
 \else
@@ -52,11 +53,11 @@
 % Abstract
 % ------------------------------------------------------------------------------
 \begin{abstract}
-Finite element methods with global sparse matrices are not adequate for modeling solid mechanics problems at large scale.
-We are particularly interested in efficient solvers for Neo-Hookean hyperelasticity at finite strain in the incompressible regime.
+Finite element methods with global sparse matrices are not adequate for modeling exascale solid mechanics problems.
+We are particularly interested in solving Neo-Hookean hyperelasticity at finite strain problems in the incompressible regime.
 High-order matrix-free operators offer superior performance in comparison to assembled sparse matrices, both with respect to FLOPs needed for evaluation and the memory transfer needed for a matrix-vector product.
 We describe a p-multigrid preconditioner that can be efficiently formulated with matrix-free operators.
-Specifically, we discuss traditional smoothers such as Jacobi and Chebyshev as well as a new domain decomposition based smoother using Balancing Domain Decomposition by Constraints with subdomain solvers using approximate separable inverses based on the Fast Diagonalization Method.
+Additionally, we discuss traditional smoothers such as Jacobi and Chebyshev as well as a new domain decomposition based smoother using Balancing Domain Decomposition by Constraints with subdomain solvers using approximate separable inverses based on the Fast Diagonalization Method.
 With these techniques, we can solve substantially larger problems when compared to assembled global sparse matrices from low-order finite elements.
 \end{abstract}
 
@@ -65,24 +66,24 @@ With these techniques, we can solve substantially larger problems when compared 
 % ------------------------------------------------------------------------------
 \section{Introduction}
 
-Solid mechanics problems are commonly solved with finite element solvers using sparse matrix representations of low order finite elements.
-However, assembled sparse matrices are memory bound for sufficiently large problems.
+Solid mechanics problems are commonly solved with finite element methods using sparse matrix representations of low order finite elements.
+However, solvers using assembled sparse matrices are memory bound for sufficiently large problems.
 We explore using high-order finite elements implemented in a matrix-free fashion with appropriate preconditioners to solve solid mechanics problems at large scale.
 
-
 High-order finite element methods offer advantages over low-order finite elements; $hp$ finite elements offer high accuracy and exponential convergence \cite{demkowicz1989toward}, \cite{oden1989toward}, \cite{rachowicz1989toward}.
-However, high-order finite elements are less common because the operator or its Jacobian rapidly loses sparsity as the order is increased.
+However, high-order finite elements are less common because a linear operator and or the Jacobian of a non-linear operator rapidly loses sparsity as the order is increased.
 Matrix-free implementation of high-order finite elements can provide the benefits of high-order methods without relying upon matrix sparsity for efficient implementation.
 
 High Performance Computing (HPC) hardware improvements in memory and network bandwidth have not kept up with improvements in Floating Point Operations per second (FLOPs), as highlighted in McCalpin's invited talk an Supercomputing 2016 \cite{mccalpin2016memory}.
 Under these hardware constraints, matrix-free operators offer superior performance, both with respect to the memory transfer and FLOPs needed for needed for evaluation of a matrix-vector product.
-However, iterative solvers are sensitive to the high condition numbers of high-order operator and require appropriate preconditioning to control total iterations and time to solution.
+However, iterative solvers are sensitive to the high condition numbers of high-order operators and require appropriate preconditioning to control total iterations and time to solution.
 
 In Section \ref{hardware}, we discuss the specific hardware limitations that constrain the performance of HPC application codes.
 In Section \ref{notation}, we provide notation to describe arbitrary PDEs and their Jacobians for matrix-free implementation.
 In Section \ref{hyperelasticity}, we provide an overview of the solid mechanics problems we are exploring.
 In Section \ref{preconditioning}, we discuss preconditioning techniques for these solid mechanics problems.
 
+\FloatBarrier
 % ------------------------------------------------------------------------------
 % Hardware Limitations
 % ------------------------------------------------------------------------------
@@ -117,6 +118,7 @@ This problem is exacerbated by network latency, which is decreasing at a rate of
 Using data from \cite{kruppcomparison}, we can see in Figure \ref{fig:peakratio} that AMD, NVIDIA, and Intel top of the line hardware has a steady decrease in the ratio of maximum memory bandwidth to FLOPs over the last 13 years.
 HPC applications need to be careful to control the memory bandwidth required for their codes to better realize the FLOPs capabilities of HPC hardware.
 
+\FloatBarrier
 % ------------------------------------------------------------------------------
 % Matrix-Free Finite Elements
 % ------------------------------------------------------------------------------
@@ -187,8 +189,22 @@ Boundary integrals internal to the domain $\Omega$, such as face integrals in Di
 % -- Linearization -------------------------------------------------------------
 \subsection{Linearization}
 
-When the PDE \ref{weak_form} is linear, the pointwise functions $f_0$ and $f_1$ are also linear and Krylov subspace methods can be used to solve the Galerkin \ref{galerkin_form}.
-When the PDE is non-linear, the Galerkin system of equations \ref{galerkin_form} provides the residual evaluator for a non-linear solver and Jacobian can be represented in a similar fashion as \ref{galerkin_form}, based upon the weak form
+% NOTE: Figure moved in the source to overcome some LaTeX positioning stupidity
+\begin{figure}
+\begin{subfigure}{.495\textwidth}
+\includegraphics[width=.99\linewidth]{img/assembledVsMatrixFree}
+\caption{FLOPs and Bytes per DoF}
+\end{subfigure}
+\begin{subfigure}{.495\textwidth}
+\includegraphics[width=.99\linewidth]{img/assembledVsMatrixFreeBalance}
+\caption{Ratio of Bytes to FLOPs}
+\end{subfigure}
+\caption{Performance per DoF}
+\label{fig:assembledvsmatrixfree}
+\end{figure}
+
+When the PDE \ref{weak_form} is linear, the pointwise functions $f_0$ and $f_1$ are also linear and Krylov subspace methods can be used to solve the Galerkin system of equations \ref{galerkin_form}.
+When the PDE is non-linear, the Galerkin system \ref{galerkin_form} provides the residual evaluator for a non-linear solver and Jacobian can be represented in a similar fashion as \ref{galerkin_form}, based upon the weak form
 \begin{equation}
 \langle v, J \left( u \right) w \rangle = \int_{\Omega}
 \left[ \begin{array}{c c}
@@ -206,7 +222,7 @@ w & \nabla w
 where $f_{i, 0} = \frac{\partial f_i}{\partial u} \left( u, \nabla u \right)$ and $f_{i, 1} = \frac{\partial f_i}{\partial \nabla u} \left( u, \nabla u \right)$.
 If these pointwise functions $f_{i, j}$ are not available analytically, they can be computed via algorithmic differentiation or finite differencing.
 
-With these pointwise functions, we can describe Jacobian-free Newton-Krylov methods, which are used to solve non-linear PDEs.
+With these pointwise functions, we can describe Jacobian-free Newton-Krylov methods for solving non-linear PDEs.
 Jacobian-free Newton-Krylov methods were summarized, with preconditioning strategies, by Knoll and Keyes in \cite{knoll2004jacobian}.
 
 % -- Performance ---------------------------------------------------------------
@@ -216,25 +232,13 @@ To demonstrate the performance benefits of high-order finite elements implemente
 In this case, application of the finite element operator for a single element requires $\mathcal{O} \left( P^6 \right)$ matrix entries and $\mathcal{O} \left( P^6 \right)$ floating point operations.
 In contrast, application of the matrix-free operator for a single element requires $\mathcal{O} \left( P^3 \right)$ floating point values and $\mathcal{O} \left( P^{d + 1} \right)$ floating point operations.
 
-\begin{figure}
-\begin{subfigure}{.495\textwidth}
-\includegraphics[width=.99\linewidth]{img/assembledVsMatrixFree}
-\caption{FLOPs and Bytes per DoF}
-\end{subfigure}
-\begin{subfigure}{.495\textwidth}
-\includegraphics[width=.99\linewidth]{img/assembledVsMatrixFreeBalance}
-\caption{Ratio of Bytes to FLOPs}
-\end{subfigure}
-\caption{Performance per DoF}
-\label{fig:assembledvsmatrixfree}
-\end{figure}
+As seen in Figure \ref{fig:assembledvsmatrixfree}, the balance between bandwidth and FLOPs for matrix-free implementations more closely agrees with current HPC hardware capabilities.
 
-As seen in Figure \ref{fig:assembledvsmatrixfree}, balance between bandwidth and FLOPs for matrix-free implementations more closely agrees with current HPC hardware capabilities.
-
-In comparison to generation of simplex meshes, generation of high quality hexahedral meshes is a time intensive process.
+In comparison to the generation of simplex meshes, generation of high quality hexahedral meshes is a time intensive process.
 However, it is possible to generate meshes comprised predominately of high quality hexahedral elements with initial refinement of a simplex mesh without the costly process of fully converting a simplex mesh into hexahedral elements.
 Thus, the performance benefits of high-order matrix-free finite elements can be realized without substantial additional effort in generating a mesh exclusively composed of high quality hexahedral elements.
 
+\FloatBarrier
 % ------------------------------------------------------------------------------
 % Hyperelasticity
 % ------------------------------------------------------------------------------
@@ -288,10 +292,10 @@ Although our techniques are applicable to a wide range of problems, we are prima
 % Finite Strain ----------------------------------------------------------------
 %\subsection{Finite Strain}
 
-In the total Lagrangian approach for the Neo-Hookean hyperelasticity problem, the discrete equations are formulated with respect to the reference configuration; we solve for displacement $u \left( X \right)$ in the reference frame $X$.
+In the total Lagrangian approach to Neo-Hookean hyperelasticity, the discrete equations are formulated with respect to the reference configuration; we solve for displacement $u \left( X \right)$ in the reference frame $X$.
 Our notation is inspired by \cite{holzapfel2000nonlinear}.
 
-The strong form of the static balance of linear-momentum at finite strain is given by
+The strong form of the static balance of linear-momentum at finite strain is
 \begin{equation}
 - \nabla_X \cdot \boldsymbol{P} - \rho_0 \boldsymbol{g} = 0
 \label{finite_strong}
@@ -326,7 +330,7 @@ Omitting the full derivation for the sake of brevity, we are currently intereste
 \label{constitutive}
 \end{equation}
 where $\boldsymbol{C} = \boldsymbol{F}^T \boldsymbol{F}$ is the right Cauchy-Green tensor and $\boldsymbol{E} = \frac{1}{2} \left( \boldsymbol{C} - \boldsymbol{I} \right)$ is the Green-Lagrange strain tensor.
-The Lam{\'e} parameters are given by $\lambda = \frac{E \nu}{\left( 1 + \nu \right)\left( 1 - 2 \nu \right)}$ and $\mu = \frac{E}{2 \left( 1 + \nu \right)}$.
+The Lam{\'e} parameters, $\lambda$ and $\mu$, are given by $\lambda = \frac{E \nu}{\left( 1 + \nu \right)\left( 1 - 2 \nu \right)}$ and $\mu = \frac{E}{2 \left( 1 + \nu \right)}$.
 
 We therefore have in our linearization
 \begin{equation}
@@ -354,8 +358,10 @@ For this study, we deformed a rectangular beam by performing a one radian axial 
 \end{figure}
 
 The results of this study can be seen in Figure \ref{fig:convergence}.
-On the left, we fix the polynomial degree of the basis while doubling the number of elements in each direction.
 On the right, we fix the number of elements while increasing the polynomial degree of the basis.
+On the left, we fix the polynomial degree of the basis while doubling the number of elements in each direction.
+The degree 3 and degree 4 cases are not converging as rapidly as expected; however it is unclear if the convergence is a problem with the study or the implementation. 
+
 
 \begin{figure}
 \begin{subfigure}{.495\textwidth}
@@ -370,13 +376,14 @@ On the right, we fix the number of elements while increasing the polynomial degr
 \label{fig:convergence}
 \end{figure}
 
+\FloatBarrier
 % ------------------------------------------------------------------------------
 % Preconditioning
 % ------------------------------------------------------------------------------
 \section{Preconditioning}\label{preconditioning}
 
 As discussed in Section \ref{hyperelasticity}, high-order matrix-free finite elements offer performance benefits in comparison to assembled sparse matrix representations.
-As is typical with sparse matries, matrix-free formulations require iterative solvers for solve the Galerkin system of equations.
+Matrix-free formulations require iterative solvers for the Galerkin system of equations.
 We are primarily interested in Conjugate Gradient (CG), first developed by Hestens and Stiefel \cite{hestenes1952methods}, which is Krylov subspace method.
 Krylov subspace methods are a natural fit for matrix-free finite elements, as these methods only require matrix-vector products to populate the Krylov subspace
 \begin{equation}
@@ -385,7 +392,7 @@ Krylov subspace methods are a natural fit for matrix-free finite elements, as th
 \end{equation}
 which is used to construct increasingly accurate iterates $x^k$ that approach the true solution $x$.
 
-The iteration count to reach convergence of Krylov subspace methods is based upon condition number of the operator \cite{luenberger1973introduction} and high-order finite element operators have notoriously poor condition numbers \cite{hu1998bounds}.
+The iteration count to reach convergence for Krylov subspace methods is based, in part, upon condition number of the operator \cite{luenberger1973introduction} and high-order finite element operators have notoriously poor condition numbers \cite{hu1998bounds}.
 In this section we discuss preconditioners based upon $p$-type multigrid to control the condition number of high-order finite elements implemented in a matrix-free fashion.
 With these preconditioners, we can reduce total iteration count and thus total time to solution for these operators.
 
@@ -406,22 +413,22 @@ We will investigate left preconditioning, where $\mathbf{M}_R = I$ and $\mathbf{
 Therefore, we will adopt the notation $\mathbf{M}_L = \mathbf{M}$.
 
 Note that preconditioning CG is more restrictive than other Krylov methods as the CG algorithm requires preconditioners to preserve the symmetric positive definite property of the operator representing the Galerkin system.
-Thus, preconditioning methods for CG can be applied to more general Krylov methods, such as generalized minimal residual method (GMRES).
+As a result, preconditioning methods for CG can be applied to more general Krylov methods, such as generalized minimal residual method (GMRES).
 
 % P-Multigrid ------------------------------------------------------------------
 \subsection{P-Multigrid}\label{p-multigrid}
 
 Multigrid methods are popular multi-level techniques that provide resolution independent convergence rates.
 $p$-type multigrid, developed by Ronquist and Patera \cite{ronquist1987spectral}, is a natural choice for high-order finite elements on an unstructured mesh and can be implemented with operators represented as in \ref{galerkin_form}.
-Ronquist and Patera declared $p$-multigrid \textit{sensibly independent} of number of elements and polynomial degree of the element bases.
+Ronquist and Patera declared $p$-multigrid \textit{sensibly independent} of the number of elements and polynomial degree of the element bases.
 Multigrid can be used as an independent solver, but we investigate the use of multigrid as a preconditioner for a Krylov method.
 
 There has been work by Heys, Manteuffel, McCormick, and Olson demonstrating the feasibility of algebraic multigrid (AMG) for high-order finite elements \cite{heys2005algebraic}; however, algebraic multigrid requires assembly of the finite element operator, which defeats the benefits of matrix-free implementation.
-There are examples of using $h$-multigrid for matrix-free finite elements in solid mechanics, such as \cite{davydov2019matrix}; however $p$-multigrid offers more flexibility with respect to meshes in comparison to $h$-multigrid as it does not require aggregation of multiple elements into larger elements.
+In a new publication, Davydow et al. are using $h$-multigrid for matrix-free finite elements in solid mechanics; however $p$-multigrid offers more flexibility with respect to meshes in comparison to $h$-multigrid as it does not require aggregation of multiple elements into larger elements.
 
 While the theoretical foundation for $p$-multigrid implemented in a matrix-free fashion on unstructured meshes has existed for quite some time, there do not appear to be many examples of these techniques being combined for practical problems.
-We are collaborating on a paper implementing these techniques in the context of Neo-Hookean hyperelasticity at finite strain.
-This is a new contribution to the solid mechanics community, which typically uses low order finite elements and assembled sparse matrices.
+We are collaborating on a paper implementing these techniques in the context of compressible Neo-Hookean hyperelasticity at finite strain.
+This is a new contribution to the solid mechanics community, which typically uses low-order finite elements and assembled sparse matrices.
 Overall, the use of high-order finite elements with $p$-multigrid is under-explored for solid mechanics problems, especially with high-contrast or nearly incompressible materials.
 
 Application of $p$-multigrid follows the typical multigrid algorithm \ref{multigrid}, such as described by \cite{brandt1982guide}
@@ -464,9 +471,9 @@ These smoothers can also be used as preconditioners outside the context of multi
 
 Efficient Jacobi and Chebyshev implementations are important as smoothers for multigrid preconditioners.
 As discussed in \cite{adams2003parallel}, the Chebyshev semi-iterative method is a particularly good choice as a smoother for parallel multigrid implementations.
-It is easier to provide adequate estimates of the maximal eigenvalue and Chebyshev is not too sensitive to estimation of this parameter.
+It relatively easy to provide adequate estimates of the maximal eigenvalue and Chebyshev is not too sensitive to estimation of this parameter.
 
-Currently, we use the Chekyshev semi-iterative method with our current Neo-Hookean hyperelasticity solver.
+Currently, we use the Chekyshev semi-iterative method as a smoother in our compressible Neo-Hookean hyperelasticity solver.
 While Jacobi and Chebyshev techniques are well established, there is some work to be done in providing efficient operator diagonal or block diagonal assembly, especially in the context of matrix-free Jacobians computed via numerical or algorithmic differentiation.
 
 % Domain Decomposition ---------------------------------------------------------
@@ -496,12 +503,12 @@ with $\delta_i \left( x \right) = 1 / \lvert \mathcal{N}_x \rvert$ and $\mathcal
 The function $\delta_i \left( x \right)$ is used to create the scaled injection operator $\mathbf{R}_1$ such that interior values have $1$ and interface values have $\lvert \mathcal{N}_x \rvert$ entries each set to $\delta_i \left( x \right)$.
 
 The operator $\widetilde{\mathbf{A}}^{-1}$ represents a subdomain solver.
-This subdomain solver is often a direct method; however, Li and Widlun demonstrated the feasibility of inexact solvers in \cite{li2007use}.
+This subdomain solver is often a direct method; however, Li and Widlun demonstrated the feasibility of inexact subdomain solvers in \cite{li2007use}.
 
 % Subdomain Solvers ------------------------------------------------------------
 \subsubsection{Subdomain Solvers}\label{subdomainsolvers}
 
-We are investigating separable approximate inverses based on the Fast Diagonalization Method (FDM) for non-separable problems as inexact subdomain solvers.
+We are investigating separable approximate inverses based on the Fast Diagonalization Method (FDM) as inexact subdomain solvers for non-separable problems.
 
 Lynch, Rice, and Thomas introduced FDM in \cite{lynch1964direct}.
 FDM directly solves separable linear equations based upon tensor products of lower dimension operators.
@@ -531,7 +538,7 @@ A^{-1} = \boldsymbol{\mathcal{X}}^T \left( \alpha^2 \mathbf{I} + \sum_{i = 0}^{d
 \label{helmholz_inv}
 \end{equation}
 where $\boldsymbol{\mathcal{X}} = \mathcal{X} \otimes \mathcal{X} \otimes \mathcal{X}$, $\mathbf{L}_0 = L \otimes I \otimes I$, and so on.
-Notice that if we treat $\boldsymbol{\mathcal{X}}$ as a basis operation, these inverses can be described and implemented matrix-free, as in \ref{galerkin_form}.
+Notice that if we treat $\boldsymbol{\mathcal{X}}$ as a basis, these inverses can be described and implemented matrix-free, as in \ref{galerkin_form}.
 
 With non-separable operators $A$, a suitable choice of $\left( \alpha^2 \mathbf{I} + \sum_{i = 0}^{d - 1} \mathbf{L}_i \right)$ can produce suitable approximate subdomain solvers.
 Fisher, Miller, and Tufo demonstrated in \cite{fischer2000overlapping} that while FDM cannot be used for arbitrarily deformed subdomains, defining the diagonalization over a parallelepiped with average dimensions in each coordinate direction is adequate for preconditioning.
@@ -542,7 +549,7 @@ These approximate inverse techniques may be used with other domain decomposition
 \subsection{Split Preconditioners}
 
 The preconditioners given above are not appropriate for mixed finite element methods.
-In these cases, splitting these PDE by fields and applying different preconditioners to different fields can yield an effective preconditioner.
+In these cases, splitting these PDE by fields and applying different preconditioners to each fields can yield an effective preconditioner.
 In this way, the above preconditioners can be composed to handle a wider range of problems.
 
 If the operator $A$ has the decomposition
@@ -576,6 +583,7 @@ We are collaborating in the development of a solver for Neo-Hookean hyperelastic
 This solver will split the displacement and discontinuous pressure fields, applying $p$-multigrid to the displacement fields and block Jacobi to the discontinuous pressure field.
 This approach will facilitate solving incompressible hyperelastic problems at large scale.
 
+\FloatBarrier
 % ------------------------------------------------------------------------------
 % Conclusion
 % ------------------------------------------------------------------------------
@@ -585,7 +593,7 @@ We discussed the benefits of high-order matrix-free finite elements for solid me
 We highlighted several areas for future improvement in preconditioning for high-order finite element operators implemented in a matrix-free fashion.
 $p$-multigrid with matrix-free prolongation, restriction, and smoothing operators is a natural fit for high-order matrix-free finite elements and has proven effective in solid mechanics problems.
 While Jacobi and Chebyshev semi-iterative preconditioning is not new, these techniques are important as smoothers for multigrid methods, and there is work to be done on providing efficient operator diagonal or point block diagonal assembly, especially for Jacobians computed via numerical or alogrithmic differentiation.
-BDDC is another attractive technique for smoothing multigrid methods, and FDM based matrix-free separable approximate inverses may provide suitable subdomain solvers for BDDC and other domain decomposition techniques with non-linear and non-separable problems.
+BDDC is another attractive technique for smoothing multigrid methods, and FDM based matrix-free separable approximate inverses may provide suitable subdomain solvers for BDDC and other domain decomposition techniques with non-linear and non-separable problems on arbitrarily deformed elements.
 Neo-Hookean hyperelasticity at finite strain in the incompressible regime will require mixed finite elements with split preconditioning.
 
 % ------------------------------------------------------------------------------
