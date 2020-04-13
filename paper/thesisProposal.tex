@@ -104,11 +104,11 @@ This problem is exacerbated by network latency, which is decreasing at a rate of
 
 \begin{figure}
 \begin{subfigure}{.49\textwidth}
-\includegraphics[width=.99\linewidth]{img/peakFlopsAndBandwidth}
+\includegraphics[width=.99\linewidth]{../img/peakFlopsAndBandwidth}
 \caption{Peak FLOPs and Bandwidth}
 \end{subfigure}
 \begin{subfigure}{.49\textwidth}
-\includegraphics[width=.99\linewidth]{img/peakRatio}
+\includegraphics[width=.99\linewidth]{../img/peakRatio}
 \caption{Ratio Bandwidth to FLOPs}
 \end{subfigure}
 \caption{System Balance}
@@ -143,7 +143,7 @@ We can define the corresponding matrices for 3D problems via tensor products
 \mathbf{D}_0 = D \otimes B \otimes B\\
 \mathbf{D}_1 = B \otimes D \otimes B \hspace{5mm}
 \mathbf{D}_2 = B \otimes B \otimes D\\
-\mathbf{W}   = W \otimes W \otimes W.
+\mathbf{W}   = W \otimes W \otimes W
 \end{array}
 \label{basis_ops}
 \end{equation}
@@ -192,11 +192,11 @@ Boundary integrals internal to the domain $\Omega$, such as face integrals in Di
 % NOTE: Figure moved in the source to overcome some LaTeX positioning stupidity
 \begin{figure}
 \begin{subfigure}{.495\textwidth}
-\includegraphics[width=.99\linewidth]{img/assembledVsMatrixFree}
+\includegraphics[width=.99\linewidth]{../img/assembledVsMatrixFree}
 \caption{FLOPs and Bytes per DoF}
 \end{subfigure}
 \begin{subfigure}{.495\textwidth}
-\includegraphics[width=.99\linewidth]{img/assembledVsMatrixFreeBalance}
+\includegraphics[width=.99\linewidth]{../img/assembledVsMatrixFreeBalance}
 \caption{Ratio of Bytes to FLOPs}
 \end{subfigure}
 \caption{Performance per DoF}
@@ -346,11 +346,11 @@ For this study, we deformed a rectangular beam by performing a one radian axial 
 
 \begin{figure}
 \begin{subfigure}{.495\textwidth}
-\includegraphics[width=.99\linewidth]{img/deformBefore}
+\includegraphics[width=.99\linewidth]{../img/deformBefore}
 \caption{Beam Before Deformation}
 \end{subfigure}
 \begin{subfigure}{.495\textwidth}
-\includegraphics[width=.99\linewidth]{img/deformAfter}
+\includegraphics[width=.99\linewidth]{../img/deformAfter}
 \caption{Beam After Deformation}
 \end{subfigure}
 \caption{Deformation}
@@ -365,11 +365,11 @@ The degree 3 and degree 4 cases are not converging as rapidly as expected; howev
 
 \begin{figure}
 \begin{subfigure}{.495\textwidth}
-\includegraphics[width=.99\linewidth]{img/convergeHRefine}
+\includegraphics[width=.99\linewidth]{../img/convergeHRefine}
 \caption{h Refinement}
 \end{subfigure}
 \begin{subfigure}{.495\textwidth}
-\includegraphics[width=.99\linewidth]{img/convergePRefine}
+\includegraphics[width=.99\linewidth]{../img/convergePRefine}
 \caption{p Refinement}
 \end{subfigure}
 \caption{Self Convergence Study}
@@ -448,7 +448,7 @@ where $\mathbf{P}$ is the grid prolongation operator, $\mathbf{R}$ the grid rest
 
 For $p$-multigrid with nodal bases, the prolongation operator interpolates using the lower order basis functions to the higher order basis nodes and is defined by
 \begin{equation}
-\mathbf{P}_{p - 1}^p = \Lambda \left( m_p^{-1} \right) \sum_e \mathcal{E}_p^T \mathbf{B}_{p - 1}^p \mathcal{E}_{p - 1}
+\mathbf{P}_{p - 1}^p = \Lambda \left( m_p^{-1} \right) \mathcal{E}_p^T \sum_e \mathbf{B}_{p - 1}^p \mathcal{E}^e_{p - 1}
 \label{mg_prolong}
 \end{equation}
 where $\mathbf{B}_{p - 1}^p$ interpolates from a basis of degree $p - 1$ to degree $p$ and $m_p = \mathcal{E}_p^T \mathcal{E}_p 1$ counts the multiplicity of shared nodes between elements.
@@ -491,10 +491,11 @@ For sufficiently high-order elements, we can treat each element as a subdomain.
 We partition the degrees of freedoms into two groups, those on the interface $\Gamma$ and those in the interior $I$.
 We can therefore formulate the BDDC preconditioner, as seen in \cite{brown2019local}, as
 \begin{equation}
-\hat{\mathbf{M}}^{-1} = \left( \mathbf{R}_1^T - \mathcal{H} \mathbf{J}_D \right) \hat{\mathbf{A}}^{-1} \left( \mathbf{R}_1 \mathbf{J}_D^T \mathcal{H} \right)
+\hat{\mathbf{M}}^{-1} = \left( \mathbf{R}_1^T - \mathcal{H} \mathbf{J}_D \right) \hat{\mathbf{A}}^{-1} \left( \mathbf{R}_1 - \mathbf{J}_D^T \mathcal{H}^T \right)
 \label{bddc}
 \end{equation}
-where $\mathcal{H}$ is the direct sum of local operators $\mathcal{H}^{\left( i \right)} = - \left( \mathbf{A}_{I I}^{\left( i \right)} \right)^{-1} \left( A_{\Gamma I}^{\left( i \right)} \right)^T$ that map the jump over subdomain interfaces $J_D$ to subdomain interiors by solving a local Dirichlet problem and giving zero for other values so
+where $\mathcal{H}$ is the direct sum of local operators $\mathcal{H}^{\left( i \right)} = - \left( \mathbf{A}_{I I}^{\left( i \right)} \right)^{-1} \left( 
+mathbf{A}_{\Gamma I}^{\left( i \right)} \right)^T$ that map the jump over subdomain interfaces $J_D$ to subdomain interiors by solving a local Dirichlet problem and giving zero for other values so
 \begin{equation}
 \left( \mathbf{J}_D^T v \left( x \right) \right)^{\left( i \right)} = \sum_{j \in \mathcal{N}_x} \left( \delta_j \left( x \right) v^{\left( i \right)} \left( x \right) - \delta_i \left( x \right) v^{\left( j \right)} \left( x \right) \right) \forall x \in \Gamma_i
 \label{sub_jump}
@@ -502,7 +503,7 @@ where $\mathcal{H}$ is the direct sum of local operators $\mathcal{H}^{\left( i 
 with $\delta_i \left( x \right) = 1 / \lvert \mathcal{N}_x \rvert$ and $\mathcal{N}_x$ is the set of indices of subdomains that have $x$ on their boundary.
 The function $\delta_i \left( x \right)$ is used to create the scaled injection operator $\mathbf{R}_1$ such that interior values have $1$ and interface values have $\lvert \mathcal{N}_x \rvert$ entries each set to $\delta_i \left( x \right)$.
 
-The operator $\widetilde{\mathbf{A}}^{-1}$ represents a subdomain solver.
+The operator $\widetilde{\mathbf{A}}^{-1}$ represents a substructure solver and the operator $\mathbf{A}_{I I}^{\left( i \right)}$ represents a subdomain solver.
 This subdomain solver is often a direct method; however, Li and Widlun demonstrated the feasibility of inexact subdomain solvers in \cite{li2007use}.
 
 % Subdomain Solvers ------------------------------------------------------------
@@ -568,7 +569,7 @@ B^T F^{-1} & I\\
 \end{array} \right)
 \left( \begin{array}{cc}
 F & 0\\
-0 & -S\\
+0 & S\\
 \end{array} \right)
 \left( \begin{array}{cc}
 I & F^{-1} B\\
@@ -604,5 +605,5 @@ Neo-Hookean hyperelasticity at finite strain in the incompressible regime will r
 This work is supported by the Exascale Computing Project (17-SC-20-SC), a collaborative effort of two U.S. Department of Energy organizations (Office of Science and the National Nuclear Security Administration) responsible for the planning and preparation of a capable exascale ecosystem, including software, applications, hardware, advanced system engineering and early testbed platforms, in support of the nation’s exascale computing imperative.
 
 \bibliographystyle{siamplain}
-\bibliography{references/references}
+\bibliography{../references/references}
 \end{document}
