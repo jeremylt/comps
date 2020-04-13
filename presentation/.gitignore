@@ -2,5 +2,8 @@
 *.bbl
 *.blg
 *.log
+*.nav
 *.out
+*.snm
 *.thm
+*.toc
